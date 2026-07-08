@@ -1,0 +1,43 @@
+# --- Secrets / env ---
+.env
+.env.local
+*.env
+!.env.example
+
+# --- Java / Spring (backend) ---
+target/
+build/
+*.class
+*.jar
+!**/gradle/wrapper/*.jar
+.gradle/
+hs_err_pid*
+
+# --- Node / Angular (frontend) ---
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+yarn-error.log*
+
+# --- IDE / editor ---
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+
+# --- Logs / tmp ---
+*.log
+logs/
+tmp/
+
+# --- Course / internal docs (kept out of the repo on purpose;
+#     shared with teammates separately, never public) ---
+*.xlsx
+praetor-team-plan.*
+docs/srs/
+**/srs/

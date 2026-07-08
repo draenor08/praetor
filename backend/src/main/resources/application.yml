@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: praetor-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/praetor}
+    username: ${SPRING_DATASOURCE_USERNAME:praetor}
+    password: ${SPRING_DATASOURCE_PASSWORD:change-me-local-only}
+  jpa:
+    # Schema owned by db/schema.sql (applied by postgres initdb). Never let
+    # Hibernate create/alter tables — validate once entities exist, none for now.
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+
+server:
+  port: 8080
+
+# Actuator health includes the DB check → /actuator/health = UP proves DB wiring.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never

@@ -1,0 +1,53 @@
+name: praetor
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - praetor_pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRY_MIN: ${JWT_EXPIRY_MIN}
+      SANDBOX_IMAGE: ${SANDBOX_IMAGE}
+      SANDBOX_CPU_SECONDS: ${SANDBOX_CPU_SECONDS}
+      SANDBOX_MEM_MB: ${SANDBOX_MEM_MB}
+      SANDBOX_PIDS_MAX: ${SANDBOX_PIDS_MAX}
+      JUDGE_WORKERS: ${JUDGE_WORKERS}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    # Sandbox strategy = mount docker.sock; backend launches sibling judge
+    # containers via `docker run`. Wired now, used once SandboxRunner lands.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+
+volumes:
+  praetor_pgdata:
