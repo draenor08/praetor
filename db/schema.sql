@@ -9,12 +9,14 @@ BEGIN;
 -- ---------------------------------------------------------------------------
 CREATE TABLE users (
     id           BIGSERIAL PRIMARY KEY,
-    handle       VARCHAR(40)  NOT NULL UNIQUE,
+    full_name    VARCHAR(100) NOT NULL,
+    username     VARCHAR(40)  NOT NULL UNIQUE,
     email        VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    role         VARCHAR(20)  NOT NULL DEFAULT 'CODER'
-                 CHECK (role IN ('CODER','SETTER','ADMIN')),
-    created_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
+    password     VARCHAR(255) NOT NULL,
+    role         VARCHAR(20)  NOT NULL DEFAULT 'USER'
+                 CHECK (role IN ('USER','PROBLEM_SETTER','ADMIN')),
+    created_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
 -- ---------------------------------------------------------------------------

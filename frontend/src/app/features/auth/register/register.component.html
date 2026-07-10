@@ -1,0 +1,58 @@
+<div class="auth-container">
+  <div class="auth-card register-card">
+    <h2>Create an Account</h2>
+    <p>Join Praetor and start solving problems.</p>
+
+    <div *ngIf="errorMessage" class="error-message">
+      {{ errorMessage }}
+    </div>
+
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label for="fullName">Full Name</label>
+        <input id="fullName" type="text" formControlName="fullName" placeholder="Enter your full name">
+        <div *ngIf="registerForm.get('fullName')?.invalid && registerForm.get('fullName')?.touched" class="validation-error">
+          Full Name is required.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input id="username" type="text" formControlName="username" placeholder="Choose a username">
+        <div *ngIf="registerForm.get('username')?.invalid && registerForm.get('username')?.touched" class="validation-error">
+          Username is required.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input id="email" type="email" formControlName="email" placeholder="Enter your email">
+        <div *ngIf="registerForm.get('email')?.invalid && registerForm.get('email')?.touched" class="validation-error">
+          A valid email is required.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input id="password" type="password" formControlName="password" placeholder="Create a password">
+        <div *ngIf="registerForm.get('password')?.invalid && registerForm.get('password')?.touched" class="validation-error">
+          Password must be at least 8 characters.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password</label>
+        <input id="confirmPassword" type="password" formControlName="confirmPassword" placeholder="Confirm your password">
+        <div *ngIf="registerForm.get('confirmPassword')?.hasError('passwordMismatch') && registerForm.get('confirmPassword')?.touched" class="validation-error">
+          Passwords do not match.
+        </div>
+      </div>
+
+      <button type="submit" [disabled]="registerForm.invalid" class="btn-primary">Register</button>
+    </form>
+    
+    <div class="auth-footer">
+      Already have an account? <a routerLink="/login">Log in</a>
+    </div>
+  </div>
+</div>

@@ -1,16 +1,14 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { NavbarComponent } from './shared/components/navbar/navbar.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet],
-  template: `
-    <main style="max-width: 720px; margin: 4rem auto; padding: 0 1rem;">
-      <h1>Praetor</h1>
-      <p>Mini online judge — skeleton is up. Build features into their modules.</p>
-      <router-outlet />
-    </main>
-  `,
+  imports: [RouterOutlet, NavbarComponent],
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.scss']
 })
-export class AppComponent {}
+export class AppComponent {
+  title = 'praetor';
+}

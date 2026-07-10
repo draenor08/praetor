@@ -8,11 +8,11 @@
 BEGIN;
 
 -- Users: 1 admin, 1 setter, 2 coders --------------------------------------
-INSERT INTO users (handle, email, password_hash, role) VALUES
-  ('draenor08', 'admin@praetor.local',  '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5Vf9bxQ5jR0jX8mJ0qQ8mJ0qQ8mO', 'ADMIN'),
-  ('setter01',  'setter@praetor.local', '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5Vf9bxQ5jR0jX8mJ0qQ8mJ0qQ8mO', 'SETTER'),
-  ('alice',     'alice@praetor.local',  '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5Vf9bxQ5jR0jX8mJ0qQ8mJ0qQ8mO', 'CODER'),
-  ('bob',       'bob@praetor.local',    '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5Vf9bxQ5jR0jX8mJ0qQ8mJ0qQ8mO', 'CODER');
+INSERT INTO users (full_name, username, email, password, role) VALUES
+  ('Admin User', 'draenor08', 'admin@praetor.local',  '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5Vf9bxQ5jR0jX8mJ0qQ8mJ0qQ8mO', 'ADMIN'),
+  ('Setter User', 'setter01',  'setter@praetor.local', '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5Vf9bxQ5jR0jX8mJ0qQ8mJ0qQ8mO', 'PROBLEM_SETTER'),
+  ('Alice Coder', 'alice',     'alice@praetor.local',  '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5Vf9bxQ5jR0jX8mJ0qQ8mJ0qQ8mO', 'USER'),
+  ('Bob Coder', 'bob',       'bob@praetor.local',    '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5Vf9bxQ5jR0jX8mJ0qQ8mJ0qQ8mO', 'USER');
 
 -- Tags --------------------------------------------------------------------
 INSERT INTO tags (name) VALUES ('math'), ('implementation'), ('greedy'), ('strings');
@@ -22,7 +22,7 @@ INSERT INTO problems (slug, title, statement, constraints, difficulty, time_limi
 VALUES ('a-plus-b', 'A + B',
         'Read two integers a and b on one line. Output their sum.',
         '-10^9 <= a, b <= 10^9', 800, 1000, 262144, 'EXACT',
-        (SELECT id FROM users WHERE handle='setter01'));
+        (SELECT id FROM users WHERE username='setter01'));
 
 INSERT INTO problem_tags (problem_id, tag_id)
 SELECT (SELECT id FROM problems WHERE slug='a-plus-b'), id FROM tags WHERE name IN ('math','implementation');
@@ -38,7 +38,7 @@ INSERT INTO problems (slug, title, statement, constraints, difficulty, judge_mod
 VALUES ('reverse-string', 'Reverse String',
         'Read a single line string s. Output it reversed.',
         '1 <= |s| <= 1000, printable ascii, no spaces', 900, 'EXACT',
-        (SELECT id FROM users WHERE handle='setter01'));
+        (SELECT id FROM users WHERE username='setter01'));
 
 INSERT INTO problem_tags (problem_id, tag_id)
 SELECT (SELECT id FROM problems WHERE slug='reverse-string'), id FROM tags WHERE name IN ('strings','implementation');
@@ -53,7 +53,7 @@ INSERT INTO problems (slug, title, statement, constraints, difficulty, judge_mod
 VALUES ('circle-area', 'Circle Area',
         'Read integer radius r. Output the area of the circle (pi r^2).',
         '1 <= r <= 1000', 1000, 'FLOAT', 1e-6,
-        (SELECT id FROM users WHERE handle='setter01'));
+        (SELECT id FROM users WHERE username='setter01'));
 
 INSERT INTO problem_tags (problem_id, tag_id)
 SELECT (SELECT id FROM problems WHERE slug='circle-area'), id FROM tags WHERE name='math';
@@ -73,13 +73,13 @@ INSERT INTO contest_problems (contest_id, problem_id, label, ord) VALUES
   ((SELECT id FROM contests WHERE title='Praetor Demo Round 1'), (SELECT id FROM problems WHERE slug='circle-area'),    'C', 3);
 
 INSERT INTO registrations (contest_id, user_id) VALUES
-  ((SELECT id FROM contests WHERE title='Praetor Demo Round 1'), (SELECT id FROM users WHERE handle='alice')),
-  ((SELECT id FROM contests WHERE title='Praetor Demo Round 1'), (SELECT id FROM users WHERE handle='bob'));
+  ((SELECT id FROM contests WHERE title='Praetor Demo Round 1'), (SELECT id FROM users WHERE username='alice')),
+  ((SELECT id FROM contests WHERE title='Praetor Demo Round 1'), (SELECT id FROM users WHERE username='bob'));
 
 -- Seed ratings (TM2 domain, but seeded so leaderboard not empty) -----------
 INSERT INTO ratings (user_id, value) VALUES
-  ((SELECT id FROM users WHERE handle='alice'), 1500),
-  ((SELECT id FROM users WHERE handle='bob'),   1500);
+  ((SELECT id FROM users WHERE username='alice'), 1500),
+  ((SELECT id FROM users WHERE username='bob'),   1500);
 
 COMMIT;
 
