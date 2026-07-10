@@ -1,0 +1,16 @@
+<nav class="navbar">
+  <div class="navbar-brand">
+    <a routerLink="/" class="logo">Praetor</a>
+  </div>
+  <div class="navbar-menu">
+    <ng-container *ngIf="authService.isLoggedIn$ | async; else loggedOut">
+      <a routerLink="/" class="nav-item">Dashboard</a>
+      <a routerLink="/profile" class="nav-item">Profile</a>
+      <button (click)="logout()" class="btn-logout">Logout</button>
+    </ng-container>
+    <ng-template #loggedOut>
+      <a routerLink="/login" class="nav-item">Login</a>
+      <a routerLink="/register" class="btn-primary">Register</a>
+    </ng-template>
+  </div>
+</nav>
