@@ -33,7 +33,10 @@ class JudgePropertiesTest {
                 "praetor.judge.cpu-seconds=5",
                 "praetor.judge.mem-mb=512",
                 "praetor.judge.pids-max=128",
-                "praetor.judge.workers=4"
+                "praetor.judge.workers=4",
+                "praetor.judge.work-dir=/judge",
+                "praetor.judge.volume-name=praetor_work",
+                "praetor.judge.oom-inspect=true"
         ).run(ctx -> {
             assertThat(ctx).hasNotFailed();
             JudgeProperties p = ctx.getBean(JudgeProperties.class);
@@ -42,6 +45,9 @@ class JudgePropertiesTest {
             assertThat(p.memMb()).isEqualTo(512);
             assertThat(p.pidsMax()).isEqualTo(128);
             assertThat(p.workers()).isEqualTo(4);
+            assertThat(p.workDir()).isEqualTo("/judge");
+            assertThat(p.volumeName()).isEqualTo("praetor_work");
+            assertThat(p.oomInspect()).isTrue();
         });
     }
 
@@ -52,7 +58,9 @@ class JudgePropertiesTest {
                 "praetor.judge.cpu-seconds=2",
                 "praetor.judge.mem-mb=0",
                 "praetor.judge.pids-max=64",
-                "praetor.judge.workers=2"
+                "praetor.judge.workers=2",
+                "praetor.judge.work-dir=/judge",
+                "praetor.judge.volume-name=praetor_work"
         ).run(ctx -> {
             assertThat(ctx).hasFailed();
             // the offending field ("memMb") is in the nested BindValidationException,
@@ -68,7 +76,9 @@ class JudgePropertiesTest {
                 "praetor.judge.cpu-seconds=2",
                 "praetor.judge.mem-mb=256",
                 "praetor.judge.pids-max=64",
-                "praetor.judge.workers=2"
+                "praetor.judge.workers=2",
+                "praetor.judge.work-dir=/judge",
+                "praetor.judge.volume-name=praetor_work"
         ).run(ctx -> {
             assertThat(ctx).hasFailed();
             assertThat(ctx.getStartupFailure()).hasStackTraceContaining("image");

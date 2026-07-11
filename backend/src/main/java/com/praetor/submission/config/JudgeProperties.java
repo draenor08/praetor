@@ -17,6 +17,13 @@ import org.springframework.validation.annotation.Validated;
  *
  * <p>Owned by the judging engine (the sole consumer); lives in {@code submission}, not
  * {@code common}.
+ *
+ * <p>{@code workDir}/{@code volumeName} are deployment constants tied to docker-compose: the
+ * shared named volume ({@code volumeName}) is mounted into the backend at {@code workDir} AND
+ * passed to each sibling judge {@code docker run -v <volumeName>:<workDir>}, so both see the
+ * same bytes (named volumes resolve by name on the daemon — no host path). {@code oomInspect}
+ * off = the cheap exit-137 heuristic; on = authoritative {@code docker inspect .State.OOMKilled}
+ * (drops {@code --rm}).
  */
 @ConfigurationProperties(prefix = "praetor.judge")
 @Validated
@@ -25,5 +32,8 @@ public record JudgeProperties(
         @Positive int cpuSeconds,
         @Positive int memMb,
         @Positive int pidsMax,
-        @Positive int workers) {
+        @Positive int workers,
+        @NotBlank String workDir,
+        @NotBlank String volumeName,
+        boolean oomInspect) {
 }
