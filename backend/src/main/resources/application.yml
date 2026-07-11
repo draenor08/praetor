@@ -39,3 +39,7 @@ praetor:
     mem-mb:      ${SANDBOX_MEM_MB:256}
     pids-max:    ${SANDBOX_PIDS_MAX:64}
     workers:     ${JUDGE_WORKERS:2}
+    # deployment constants (tied to docker-compose named volume), not per-dev env
+    work-dir:     /judge
+    volume-name:  praetor_work
+    oom-inspect:  false
