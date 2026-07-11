@@ -1,0 +1,33 @@
+<section class="landing-page">
+  <div class="hero-card">
+    <div class="hero-copy">
+      <span class="eyebrow">Praetor • Competitive programming</span>
+      <h1>Train harder, solve faster, and grow with every round.</h1>
+      <p>
+        Praetor brings together problem practice, contest sessions, and submission feedback in one streamlined experience for modern developers.
+      </p>
+      <div class="hero-actions">
+        <a routerLink="/register" class="btn-primary">Get started</a>
+        <a routerLink="/login" class="btn-secondary">Sign in</a>
+      </div>
+    </div>
+
+    <div class="hero-panel">
+      <div class="panel-badge">Live now</div>
+      <h3>Weekly sprint challenge</h3>
+      <p>Sharpen your algorithm skills with a fresh problem set every week.</p>
+      <ul>
+        <li>Timed rounds</li>
+        <li>Instant verdicts</li>
+        <li>Leaderboard tracking</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="feature-grid">
+    <article class="feature-card" *ngFor="let feature of features">
+      <h3>{{ feature.title }}</h3>
+      <p>{{ feature.description }}</p>
+    </article>
+  </div>
+</section>

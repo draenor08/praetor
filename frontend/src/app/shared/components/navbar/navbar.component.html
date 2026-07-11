@@ -3,6 +3,9 @@
     <a routerLink="/" class="logo">Praetor</a>
   </div>
   <div class="navbar-menu">
+    <a routerLink="/" class="nav-item">Home</a>
+    <a routerLink="/problems" class="nav-item">Problems</a>
+    <a routerLink="/about" class="nav-item">About</a>
     <ng-container *ngIf="authService.isLoggedIn$ | async; else loggedOut">
       <a routerLink="/" class="nav-item">Dashboard</a>
       <a routerLink="/profile" class="nav-item">Profile</a>
