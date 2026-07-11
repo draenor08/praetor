@@ -27,3 +27,15 @@ management:
   endpoint:
     health:
       show-details: never
+
+# Judge sandbox tunables. Bridged from the SANDBOX_*/JUDGE_WORKERS env (docker-compose
+# passes them; .env / .env.example define them). Defaults let the app boot standalone.
+# NOTE: the ${ENV:default} bridge is required — Spring relaxed binding does NOT map
+# SANDBOX_MEM_MB to praetor.judge.mem-mb on its own.
+praetor:
+  judge:
+    image:       ${SANDBOX_IMAGE:praetor-judge:latest}
+    cpu-seconds: ${SANDBOX_CPU_SECONDS:2}
+    mem-mb:      ${SANDBOX_MEM_MB:256}
+    pids-max:    ${SANDBOX_PIDS_MAX:64}
+    workers:     ${JUDGE_WORKERS:2}
