@@ -1,27 +1,59 @@
-<section class="landing-page">
+<section class="page-shell">
+  <div class="page-intro">
+    <p class="eyebrow">Dashboard</p>
+    <h1>Your Praetor command centre</h1>
+    <p>Review your progress, enter the live contest, and continue solving problems from one focused workspace.</p>
+  </div>
+
   <div class="hero-card">
     <div class="hero-copy">
-      <span class="eyebrow">Praetor • Competitive programming</span>
-      <h1>Train harder, solve faster, and grow with every round.</h1>
-      <p>
-        Praetor brings together problem practice, contest sessions, and submission feedback in one streamlined experience for modern developers.
-      </p>
+      <p class="eyebrow">Authenticated workspace</p>
+      <h2>Welcome back, challenger.</h2>
+      <p>Praetor combines practice sessions, live rounds, and submission feedback into one focused environment for disciplined growth.</p>
       <div class="hero-actions">
-        <a routerLink="/register" class="btn-primary">Get started</a>
-        <a routerLink="/login" class="btn-secondary">Sign in</a>
+        <a routerLink="/problems" class="btn-primary">Browse problems</a>
+        <a routerLink="/about" class="btn-secondary">Read help</a>
       </div>
     </div>
 
-    <div class="hero-panel">
-      <div class="panel-badge">Live now</div>
-      <h3>Weekly sprint challenge</h3>
-      <p>Sharpen your algorithm skills with a fresh problem set every week.</p>
-      <ul>
-        <li>Timed rounds</li>
-        <li>Instant verdicts</li>
-        <li>Leaderboard tracking</li>
-      </ul>
-    </div>
+    <aside class="profile-card" aria-label="Current user summary">
+      <div class="profile-header">
+        <div class="avatar large">P</div>
+        <div>
+          <strong>praetor</strong>
+          <span>▲ 1512 · Specialist</span>
+        </div>
+      </div>
+
+      <div class="profile-stats">
+        <div>
+          <strong>#12</strong>
+          <span>Global rank</span>
+        </div>
+        <div>
+          <strong>70%</strong>
+          <span>Accuracy</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="stats-grid" aria-label="Account statistics">
+    <article class="stat-card">
+      <span>Problems solved</span>
+      <strong>73</strong>
+      <small>6 solved this week</small>
+    </article>
+    <article class="stat-card">
+      <span>Submissions</span>
+      <strong>104</strong>
+      <small>70% accepted</small>
+    </article>
+    <article class="stat-card">
+      <span>Current rating</span>
+      <strong>1512</strong>
+      <small>▲ 46 last contest</small>
+    </article>
   </div>
 
   <div class="feature-grid">

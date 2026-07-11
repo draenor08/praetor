@@ -1,23 +1,19 @@
 .page-shell {
   min-height: calc(100vh - 80px);
-  padding: 6rem 2rem 3rem;
   display: flex;
   justify-content: center;
+  align-items: center;
 }
 
 .page-card {
   width: min(560px, 100%);
-  background: var(--surface-color);
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
-  padding: 2rem;
+  padding: 28px;
   text-align: center;
-  box-shadow: 0 14px 40px rgba(2, 6, 23, 0.25);
 }
 
 .error-card h1 {
-  font-size: 4rem;
   margin: 0;
+  font-size: 4rem;
 }
 
 .error-card h2 {
@@ -25,6 +21,5 @@
 }
 
 .error-card p {
-  color: var(--text-muted);
   line-height: 1.7;
 }
