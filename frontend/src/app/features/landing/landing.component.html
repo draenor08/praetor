@@ -1,0 +1,65 @@
+<section class="page-shell">
+  <div class="page-intro">
+    <p class="eyebrow">Dashboard</p>
+    <h1>Your Praetor command centre</h1>
+    <p>Review your progress, enter the live contest, and continue solving problems from one focused workspace.</p>
+  </div>
+
+  <div class="hero-card">
+    <div class="hero-copy">
+      <p class="eyebrow">Authenticated workspace</p>
+      <h2>Welcome back, challenger.</h2>
+      <p>Praetor combines practice sessions, live rounds, and submission feedback into one focused environment for disciplined growth.</p>
+      <div class="hero-actions">
+        <a routerLink="/problems" class="btn-primary">Browse problems</a>
+        <a routerLink="/about" class="btn-secondary">Read help</a>
+      </div>
+    </div>
+
+    <aside class="profile-card" aria-label="Current user summary">
+      <div class="profile-header">
+        <div class="avatar large">P</div>
+        <div>
+          <strong>praetor</strong>
+          <span>▲ 1512 · Specialist</span>
+        </div>
+      </div>
+
+      <div class="profile-stats">
+        <div>
+          <strong>#12</strong>
+          <span>Global rank</span>
+        </div>
+        <div>
+          <strong>70%</strong>
+          <span>Accuracy</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="stats-grid" aria-label="Account statistics">
+    <article class="stat-card">
+      <span>Problems solved</span>
+      <strong>73</strong>
+      <small>6 solved this week</small>
+    </article>
+    <article class="stat-card">
+      <span>Submissions</span>
+      <strong>104</strong>
+      <small>70% accepted</small>
+    </article>
+    <article class="stat-card">
+      <span>Current rating</span>
+      <strong>1512</strong>
+      <small>▲ 46 last contest</small>
+    </article>
+  </div>
+
+  <div class="feature-grid">
+    <article class="feature-card" *ngFor="let feature of features">
+      <h3>{{ feature.title }}</h3>
+      <p>{{ feature.description }}</p>
+    </article>
+  </div>
+</section>
