@@ -1,13 +1,31 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './features/auth/login/login.component';
 import { RegisterComponent } from './features/auth/register/register.component';
+import { ShellComponent } from './layout/shell/shell.component';
+import { ComingSoonComponent } from './shared/components/coming-soon/coming-soon.component';
 import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
+  // Auth pages render outside the shell (no rail/topbar).
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
-  { path: '', redirectTo: '/login', pathMatch: 'full' },
-  // example protected route
-  // { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },
-  { path: '**', redirectTo: '/login' }
+
+  // Everything else lives inside the authenticated shell. Section pages are
+  // owned by different teammates and land incrementally; until each ships its
+  // route resolves to ComingSoon. Swap `component` when the real page is ready.
+  {
+    path: '',
+    component: ShellComponent,
+    canActivate: [authGuard],
+    children: [
+      { path: 'problems', component: ComingSoonComponent, data: { title: 'Problems' } },
+      { path: 'contests', component: ComingSoonComponent, data: { title: 'Contests' } },
+      { path: 'standings', component: ComingSoonComponent, data: { title: 'Standings' } },
+      { path: 'submissions', component: ComingSoonComponent, data: { title: 'Submissions' } },
+      { path: 'profile', component: ComingSoonComponent, data: { title: 'Profile' } },
+      { path: '', redirectTo: 'problems', pathMatch: 'full' }
+    ]
+  },
+
+  { path: '**', redirectTo: '' }
 ];
