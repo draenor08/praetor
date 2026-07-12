@@ -5,29 +5,6 @@ Course project (BRAC University). Submit code → sandboxed Docker execution →
 **Stack:** Spring Boot + PostgreSQL + Angular (TS) + Docker sandbox. Realtime via WebSocket/STOMP.
 **Docs:** `docs/api-contracts.md` (endpoints) · `docs/CONVENTIONS.md` (build rules).
 
-## Run locally
-
-### Frontend
-- From the project root, run `cd frontend`
-- Install dependencies with `npm install`
-- Start the Angular app with `npm start`
-- Open `http://localhost:4200/`
-
-### Backend auth connection
-The frontend is already wired to call the Spring auth endpoints at `/api/auth/register` and `/api/auth/login` through the Angular proxy in [frontend/proxy.conf.json](frontend/proxy.conf.json).
-
-To connect it end to end locally:
-1. Start the backend with your usual Spring Boot run command, for example `./mvnw spring-boot:run` from [backend](backend) or run it from your IDE.
-2. Ensure the backend is listening on `http://localhost:8080`.
-3. Keep the Angular dev server running on `http://localhost:4200`.
-4. Use the login and register forms; the browser will send requests to the backend through the proxy.
-
-### New frontend pages
-- Home landing page
-- About/help page
-- Problems page with search and difficulty filtering
-- 404/error page
-
 ## Repo layout (target)
 
 ```
