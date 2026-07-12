@@ -16,7 +16,10 @@
     "@angular/platform-browser": "^18.2.0",
     "@angular/platform-browser-dynamic": "^18.2.0",
     "@angular/router": "^18.2.0",
+    "@stomp/stompjs": "^7.0.0",
+    "monaco-editor": "^0.52.0",
     "rxjs": "~7.8.0",
+    "sockjs-client": "^1.6.1",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.10"
   },
@@ -24,6 +27,7 @@
     "@angular-devkit/build-angular": "^18.2.0",
     "@angular/cli": "^18.2.0",
     "@angular/compiler-cli": "^18.2.0",
+    "@types/sockjs-client": "^1.5.4",
     "typescript": "~5.5.2"
   }
 }
