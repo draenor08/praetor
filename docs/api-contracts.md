@@ -16,7 +16,7 @@
 | POST | `/api/auth/login` | `{handle, password}` | `200 {token, user:{id,handle,role}}` |
 | GET  | `/api/users/me` | — | `200 {id, handle, email, role, rating}` |
 
-Roles: `CODER` (default), `SETTER` (create problems), `ADMIN` (rejudge, announce).
+Roles (canonical — match DB `users.role` CHECK + backend `User.role`): `USER` (default coder), `PROBLEM_SETTER` (create problems), `ADMIN` (rejudge, announce). Spring authorities are `ROLE_<role>`. *(Earlier drafts said `CODER`/`SETTER`; the DB + auth code use `USER`/`PROBLEM_SETTER` — those win.)*
 
 ---
 
@@ -27,8 +27,8 @@ Roles: `CODER` (default), `SETTER` (create problems), `ADMIN` (rejudge, announce
 |---|---|---|---|
 | GET  | `/api/problems` | any | list; filters `?tag=math&difficulty=800-1200&q=text&page=&size=` (FR-15) |
 | GET  | `/api/problems/{slug}` | any | full statement; hidden testcases NOT returned, samples only |
-| POST | `/api/problems` | SETTER | create (FR-12) |
-| PUT  | `/api/problems/{slug}` | SETTER | update (FR-12) |
+| POST | `/api/problems` | PROBLEM_SETTER | create (FR-12) |
+| PUT  | `/api/problems/{slug}` | PROBLEM_SETTER | update (FR-12) |
 | DELETE | `/api/problems/{slug}` | ADMIN | (FR-12) |
 
 **Problem object**
@@ -47,8 +47,8 @@ Roles: `CODER` (default), `SETTER` (create problems), `ADMIN` (rejudge, announce
 ### Test cases (FR-13 — bulk upload)
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET  | `/api/problems/{slug}/testcases` | SETTER | full list incl. hidden |
-| POST | `/api/problems/{slug}/testcases/bulk` | SETTER | body below; replaces or appends |
+| GET  | `/api/problems/{slug}/testcases` | PROBLEM_SETTER | full list incl. hidden |
+| POST | `/api/problems/{slug}/testcases/bulk` | PROBLEM_SETTER | body below; replaces or appends |
 
 ```json
 // bulk upload body
@@ -64,7 +64,7 @@ Roles: `CODER` (default), `SETTER` (create problems), `ADMIN` (rejudge, announce
 |---|---|---|---|
 | GET | `/api/tags` | any | `["math","greedy",...]` |
 
-> **Optional (FR-16, not in the 21):** `PUT /api/problems/{slug}/editorial` (SETTER) `{ "editorial": "markdown" }`.
+> **Optional (FR-16, not in the 21):** `PUT /api/problems/{slug}/editorial` (PROBLEM_SETTER) `{ "editorial": "markdown" }`.
 
 ---
 
@@ -98,7 +98,7 @@ Not an endpoint — a **filter/interceptor** on `POST /api/submissions` (`RateLi
 ### Submissions
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| POST | `/api/submissions` | CODER | submit code; rate-limited (FR-26 filter) |
+| POST | `/api/submissions` | USER | submit code; rate-limited (FR-26 filter) |
 | GET  | `/api/submissions/{id}` | owner/ADMIN | full result incl. per-testcase |
 | GET  | `/api/submissions?user=&problem=&contest=` | any | history list (FR-10) |
 | POST | `/api/submissions/{id}/rejudge` | ADMIN | FR-27 |
@@ -120,6 +120,15 @@ Not an endpoint — a **filter/interceptor** on `POST /api/submissions` (`RateLi
 Verdicts: `AC WA TLE MLE RE CE PE`. Status lifecycle: `QUEUED → JUDGING → DONE|ERROR`.
 Judging covers: sandboxed execution (FR-4), multi-language (FR-5), per-test-case verdict (FR-6), enforced limits (FR-7), async queue (FR-8), compile-error capture (FR-9), special/float judge (FR-11).
 
+**Rejudge (FR-27) — FROZEN.** Re-enqueues an existing submission through the pipeline (same source/language, fresh verdict). ADMIN only. Re-uses the submission id; resets `status→QUEUED`, clears prior verdict/results, then judges again. If the submission belongs to a contest, judging completion triggers a standings **recompute** (not just a delta) so a flipped verdict (e.g. WA→AC) propagates to the board.
+```json
+// POST /api/submissions/{id}/rejudge   (ADMIN)   → 202 Accepted
+{ "id": 99, "status": "QUEUED" }
+// 403 if caller not ADMIN, 404 if submission id unknown
+```
+
+**Multi-language (FR-5) — scope:** `language ∈ {CPP, PYTHON}` for the committed build (`JAVA` is a documented seam, deferred). Per-language time/memory multipliers are applied over the problem's `timeLimitMs`/`memLimitKb` so an interpreted language isn't falsely TLE/MLE'd.
+
 ---
 
 ## Contest & Realtime (`contest`, `ws`) — FR-17, FR-18, FR-19, FR-20, FR-21
@@ -136,13 +145,33 @@ Judging covers: sandboxed execution (FR-4), multi-language (FR-5), per-test-case
 | POST | `/api/contests` | ADMIN | create; time window + problem set (FR-17) |
 | GET  | `/api/contests/{id}` | any | meta + problem labels |
 | GET  | `/api/contests/{id}/standings` | any | snapshot; respects freeze (FR-18, FR-19, FR-21) |
-| POST | `/api/contests/{id}/register` | CODER | `{virtual:false}` (FR-20) |
+| POST | `/api/contests/{id}/register` | USER | `{virtual:false}` (FR-20) |
 
 Standings use ICPC-style scoring with penalty (FR-19) and freeze the last N minutes (FR-21).
 
+**Standings payload — FROZEN** (identical shape for the `GET /api/contests/{id}/standings` snapshot **and** each `/topic/contest/{id}/standings` WS push):
+```json
+{ "contestId": 1,
+  "frozen": true,                     // true if a freeze window is active right now
+  "updatedAt": "2026-07-12T10:00:00Z",
+  "rows": [
+    { "rank": 1, "handle": "alice", "solved": 2, "penalty": 45,
+      "problems": [
+        {"label":"A","attempts":1,"solvedAtMin":12,"frozen":false},
+        {"label":"B","attempts":3,"solvedAtMin":33,"frozen":false},
+        {"label":"C","attempts":2,"solvedAtMin":null,"frozen":true}
+      ] } ] }
+```
+- `attempts` = rejected submissions **before** the AC (AC-attempt not counted); `solvedAtMin` = minutes from contest start to the accepted submission, `null` if unsolved.
+- `frozen:true` on a problem cell = there is post-freeze activity hidden from this viewer (show as "?"/pending).
+
+**ICPC scoring rule — FROZEN (FR-19):** rank by `solved` desc, then `penalty` asc. `penalty = Σ over solved problems (solvedAtMin + 20 × rejectedAttemptsBeforeAC)`. **CE does not count** as a rejected attempt. Unsolved problems contribute nothing. `scoring='POINTS'` contests are **deferred** (schema supports it; the committed build renders ICPC only).
+
+**Freeze rule — FROZEN (FR-21):** during the last `contests.freeze_min` minutes, standings changes are hidden from non-privileged viewers on **both** the snapshot and the live WS stream — the publisher is freeze-aware per recipient (contestants see the frozen board; ADMIN/PROBLEM_SETTER see live). A single unfiltered broadcast would leak post-freeze results and is not allowed.
+
 > **Optional (FR-22, not in the 21):** `{virtual:true}` on register enables virtual participation / upsolving.
 > **Optional (FR-23, not in the 21):** clarifications/announcements —
-> `POST /api/contests/{id}/clarifications` (CODER) `{problemId?, question}`,
+> `POST /api/contests/{id}/clarifications` (USER) `{problemId?, question}`,
 > `POST /api/contests/{id}/announcements` (ADMIN) `{problemId?, answer, isPublic:true}`,
 > `GET /api/contests/{id}/clarifications` (participant).
 
