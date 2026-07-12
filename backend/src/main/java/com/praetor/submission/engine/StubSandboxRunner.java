@@ -1,15 +1,18 @@
 package com.praetor.submission.engine;
 
 import com.praetor.submission.entity.JudgeTestCase;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
- * PR-1 stub: compiles OK and "runs" by echoing the test case's expected output, so every test
+ * Stub runner: compiles OK and "runs" by echoing the test case's expected output, so every test
  * yields AC through the real {@link VerdictEvaluator}. Proves submit→async→verdict→WS→GET without
- * docker. PR-2 adds the real {@code DockerSandboxRunner} annotated {@code @Primary}, which then
- * wins injection; this stub is retired to a {@code @Profile("stub")} at that point.
+ * docker. Since PR-2a, {@link DockerSandboxRunner} is {@code @Primary} and wins injection by
+ * default; this stub is only active under the {@code stub} profile
+ * ({@code SPRING_PROFILES_ACTIVE=stub}), e.g. for docker-less local runs or tests.
  */
 @Component
+@Profile("stub")
 public class StubSandboxRunner implements SandboxRunner {
 
     @Override

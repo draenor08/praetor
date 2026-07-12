@@ -38,9 +38,13 @@ services:
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     # Sandbox strategy = mount docker.sock; backend launches sibling judge
-    # containers via `docker run`. Wired now, used once SandboxRunner lands.
+    # containers via `docker run`. praetor_work is the shared per-run work dir:
+    # mounted here at /judge AND passed to each judge container as
+    # `-v praetor_work:/judge`, so both see the same bytes (named volume resolves
+    # by name on the host daemon — no host-path aliasing).
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - praetor_work:/judge
 
   frontend:
     build: ./frontend
@@ -51,3 +55,7 @@ services:
 
 volumes:
   praetor_pgdata:
+  # Explicit name so the judge containers' `-v praetor_work:/judge` resolves — without
+  # `name:`, compose would prefix it to `praetor_praetor_work` and the mount would miss.
+  praetor_work:
+    name: praetor_work
