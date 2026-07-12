@@ -1,0 +1,199 @@
+.page-title {
+  margin: 0;
+}
+
+.problem-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .problem-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Statement ---- */
+.statement {
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.statement-head {
+  margin-bottom: 1rem;
+}
+
+.limits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  align-items: center;
+}
+
+.limit {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.statement-body {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  color: var(--text-color);
+}
+
+.constraints h3,
+.samples h3 {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.5rem;
+}
+
+.sample {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.sample-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.sample pre {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.tag {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 5px;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+}
+
+/* ---- Submit pane ---- */
+.submit-pane {
+  position: sticky;
+  top: 1rem;
+}
+
+.submit-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.submit-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.submit-row select {
+  background-color: var(--surface-color);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+}
+
+.code-editor {
+  width: 100%;
+  min-height: 340px;
+  box-sizing: border-box;
+  background-color: #0f172a;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  resize: vertical;
+  tab-size: 4;
+}
+
+.code-editor:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* ---- Live panel ---- */
+.live-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.live-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.live-label {
+  font-family: ui-monospace, monospace;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.status-pill {
+  font-size: 0.8rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  background-color: rgba(99, 102, 241, 0.15);
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.status-pill.status-done {
+  background-color: var(--background-color);
+  color: var(--text-muted);
+}
+
+.result-link {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
+/* ---- Verdict badges (semantic, theme-independent) ---- */
+.verdict {
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+}
+.verdict-AC  { color: #58c17a; background: rgba(88, 193, 122, 0.12); }
+.verdict-WA  { color: #ef5b5b; background: rgba(239, 91, 91, 0.12); }
+.verdict-TLE { color: #d9b64a; background: rgba(217, 182, 74, 0.12); }
+.verdict-MLE { color: #a98bf0; background: rgba(169, 139, 240, 0.12); }
+.verdict-RE  { color: #f0763c; background: rgba(240, 118, 60, 0.12); }
+.verdict-CE  { color: #8b97a8; background: rgba(139, 151, 168, 0.12); }
+.verdict-PE  { color: #9aa84a; background: rgba(154, 168, 74, 0.12); }

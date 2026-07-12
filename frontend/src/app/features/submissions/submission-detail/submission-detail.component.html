@@ -1,0 +1,46 @@
+<p *ngIf="loading" class="muted">Loading…</p>
+<p *ngIf="error" class="error-message">{{ error }}</p>
+
+<div *ngIf="submission as s">
+  <div class="detail-head">
+    <h1 class="page-title">Submission #{{ s.id }}</h1>
+    <span *ngIf="s.verdict" class="verdict verdict-{{ s.verdict }}">{{ s.verdict }}</span>
+    <span *ngIf="!s.verdict" class="status-pill">{{ s.status }}</span>
+  </div>
+
+  <dl class="meta">
+    <div><dt>Problem</dt><dd><a [routerLink]="['/problems', s.problemSlug]">{{ s.problemSlug }}</a></dd></div>
+    <div><dt>Language</dt><dd>{{ s.language }}</dd></div>
+    <div><dt>Author</dt><dd>{{ s.handle }}</dd></div>
+    <div *ngIf="s.timeMs != null"><dt>Time</dt><dd class="num">{{ s.timeMs }} ms</dd></div>
+    <div *ngIf="s.memKb != null"><dt>Memory</dt><dd class="num">{{ s.memKb }} KB</dd></div>
+  </dl>
+
+  <div *ngIf="s.compileLog" class="compile-log">
+    <h3>Compile output</h3>
+    <pre>{{ s.compileLog }}</pre>
+  </div>
+
+  <h3 class="results-title">Test cases</h3>
+  <table class="result-table">
+    <thead>
+      <tr>
+        <th class="col-ord">#</th>
+        <th>Verdict</th>
+        <th class="col-num">Time</th>
+        <th class="col-num">Memory</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let r of s.results">
+        <td class="col-ord num">{{ r.ord }}</td>
+        <td><span class="verdict verdict-{{ r.verdict }}">{{ r.verdict }}</span></td>
+        <td class="col-num num">{{ r.timeMs != null ? r.timeMs + ' ms' : '—' }}</td>
+        <td class="col-num num">{{ r.memKb != null ? r.memKb + ' KB' : '—' }}</td>
+      </tr>
+      <tr *ngIf="s.results.length === 0">
+        <td colspan="4" class="muted">No per-test results (not judged, or a compile error).</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

@@ -3,6 +3,9 @@ import { LoginComponent } from './features/auth/login/login.component';
 import { RegisterComponent } from './features/auth/register/register.component';
 import { ShellComponent } from './layout/shell/shell.component';
 import { ComingSoonComponent } from './shared/components/coming-soon/coming-soon.component';
+import { ProblemListComponent } from './features/problems/problem-list/problem-list.component';
+import { ProblemDetailComponent } from './features/problems/problem-detail/problem-detail.component';
+import { SubmissionDetailComponent } from './features/submissions/submission-detail/submission-detail.component';
 import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -18,7 +21,9 @@ export const routes: Routes = [
     component: ShellComponent,
     canActivate: [authGuard],
     children: [
-      { path: 'problems', component: ComingSoonComponent, data: { title: 'Problems' } },
+      { path: 'problems', component: ProblemListComponent },
+      { path: 'problems/:slug', component: ProblemDetailComponent },
+      { path: 'submissions/:id', component: SubmissionDetailComponent },
       { path: 'contests', component: ComingSoonComponent, data: { title: 'Contests' } },
       { path: 'standings', component: ComingSoonComponent, data: { title: 'Standings' } },
       { path: 'submissions', component: ComingSoonComponent, data: { title: 'Submissions' } },

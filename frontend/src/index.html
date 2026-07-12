@@ -4,6 +4,9 @@
     <meta charset="utf-8" />
     <title>Praetor</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- sockjs-client references the Node `global` at module-eval time. ES imports hoist above any
+         statement in main.ts, so the shim must run here, before any bundle JS loads. -->
+    <script>window.global = window;</script>
   </head>
   <body>
     <app-root></app-root>

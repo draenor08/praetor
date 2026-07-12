@@ -31,6 +31,8 @@ Roles (canonical — match DB `users.role` CHECK + backend `User.role`): `USER` 
 | PUT  | `/api/problems/{slug}` | PROBLEM_SETTER | update (FR-12) |
 | DELETE | `/api/problems/{slug}` | ADMIN | (FR-12) |
 
+> **W-shim (temporary):** the two **read** endpoints above (`GET /api/problems`, `GET /api/problems/{slug}`) are currently served by `problem/controller/ProblemReadController` (an `@Immutable` `ProblemView` over the seeded rows) so the submit flow has problems to open before the problem module's write-CRUD exists. Response is the read subset — `{slug,title,difficulty,judgeMode}` for the list; `{slug,title,statement,constraints,difficulty,timeLimitMs,memLimitKb,judgeMode,samples:[{ord,input,expected}]}` for the detail (no filters/paging/tags/editorial yet). When the problem module ships its own `ProblemController` on these paths, Spring boot-fails on the duplicate mapping — delete the shim then. Tracked as W-9.
+
 **Problem object**
 ```json
 {
