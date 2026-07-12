@@ -1,0 +1,10 @@
+# Code owners for Praetor.
+# Every pull request requires review from an owner listed here before it can
+# merge to a protected branch. This keeps a single integrator (Sazid) as the
+# gate for everything that lands on main.
+#
+# Syntax: <path pattern>  <owner(s)>
+# Later matches win over earlier ones.
+
+# Default: Sazid owns everything and must approve every PR.
+*   @draenor08

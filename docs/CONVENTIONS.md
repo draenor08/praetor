@@ -187,6 +187,20 @@ A feature is **Done** only when **all** of these hold:
 
 ---
 
+# 8b. Pull request scope & hygiene
+
+Every PR is reviewed by the integrator before it merges to `main`. To keep reviews fast and reverts painless, a PR must stay **inside its own lane**:
+
+- **Touch only your package.** A PR changes files in the module you own (`identity/`, `problem/`, `submission/`, `contest/`, `ws/`, or your Angular slice). If you think you need to change someone else's file, ask first — usually the real fix is a service bean or a contract change, not editing their code.
+- **Nothing at the repo root.** The Angular app lives under `frontend/`. Loose `.html`, `.css`, or `.md` files at the top level do not belong in the repo and are git-ignored — if a prototype or mockup helped you, keep it outside the repo.
+- **No private / internal docs.** Onboarding, working manual, journal, trackers, SRS, `.xlsx`, `.env` — none of these are ever committed. They are shared separately.
+- **Shared files are additive-only.** `styles.scss`, `app.routes.ts`, and other shared files: add your lines, never rewrite the file. A wholesale rewrite clobbers everyone else's work and blocks the merge.
+- **One concern per PR.** A single feature or fix. A 20-file PR mixing four features is unreviewable and gets sent back — split it.
+
+The PR template (`.github/pull_request_template.md`) is this list as a checklist. Tick every box before requesting review.
+
+---
+
 # 9. Cheat sheet
 
 - **DB** `snake_case`, plural tables, `id` PK, `<entity>_id` FK · **JSON** `camelCase`, enums `UPPERCASE`.
@@ -195,5 +209,6 @@ A feature is **Done** only when **all** of these hold:
 - **API** shapes are fixed in `api-contracts.md`. Base `/api`, Bearer JWT, ISO-8601 UTC, error `{error,status}`, pages `{content,page,size,totalElements}`.
 - **Integration** engine reads DB directly · cross-module = service beans, never HTTP · validate role server-side on every write.
 - **Git** branch `type/kebab-task` · never commit to `main` · PR reviewed by someone else · commit `type: summary` ≤50 chars.
+- **PR scope** only your package's files · nothing at repo root · no private docs / `.env` · shared files additive-only · one concern per PR.
 - **Docker** `docker compose up` must stay green · sandbox = no network + hard limits + destroy after run · secrets via env, `.env` git-ignored.
 - **Done** = merged + reviewed + tested + contract-matched + manually verified + no errors.

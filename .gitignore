@@ -39,5 +39,15 @@ tmp/
 #     shared with teammates separately, never public) ---
 *.xlsx
 praetor-team-plan.*
+praetor-onboarding.*
+praetor-working-manual.*
+praetor-journal.*
 docs/srs/
 **/srs/
+
+# --- Stray files that must never land in the repo root ---
+#     (the Angular app lives under frontend/ — nothing HTML/CSS belongs at root)
+/index.html
+/styles.css
+/*.html
+/*.css
