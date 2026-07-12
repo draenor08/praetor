@@ -1,0 +1,70 @@
+<p *ngIf="loadError" class="error-message">{{ loadError }}</p>
+
+<div *ngIf="problem" class="problem-layout">
+  <!-- Statement pane -->
+  <section class="statement">
+    <div class="statement-head">
+      <h1 class="page-title">{{ problem.title }}</h1>
+      <div class="limits">
+        <span class="tag">{{ problem.judgeMode }}</span>
+        <span class="limit">{{ problem.timeLimitMs }} ms</span>
+        <span class="limit">{{ problem.memLimitKb / 1024 | number:'1.0-0' }} MB</span>
+        <span class="limit">difficulty {{ problem.difficulty }}</span>
+      </div>
+    </div>
+
+    <p class="statement-body">{{ problem.statement }}</p>
+
+    <div *ngIf="problem.constraints" class="constraints">
+      <h3>Constraints</h3>
+      <p class="statement-body">{{ problem.constraints }}</p>
+    </div>
+
+    <div *ngIf="problem.samples.length" class="samples">
+      <h3>Samples</h3>
+      <div class="sample" *ngFor="let s of problem.samples">
+        <div class="sample-col">
+          <div class="sample-label">Input</div>
+          <pre>{{ s.input }}</pre>
+        </div>
+        <div class="sample-col">
+          <div class="sample-label">Expected</div>
+          <pre>{{ s.expected }}</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Submit pane -->
+  <section class="submit-pane">
+    <div class="submit-row">
+      <label>
+        Language
+        <select [(ngModel)]="language" [disabled]="submitting">
+          <option value="CPP">C++</option>
+        </select>
+      </label>
+      <button type="button" class="btn-primary" (click)="submit()"
+              [disabled]="submitting || !sourceCode.trim()">
+        {{ submitting ? 'Judging…' : 'Submit' }}
+      </button>
+    </div>
+
+    <textarea class="code-editor" [(ngModel)]="sourceCode" [disabled]="submitting"
+              spellcheck="false" placeholder="// paste your C++ solution here"></textarea>
+
+    <p *ngIf="submitError" class="error-message">{{ submitError }}</p>
+
+    <!-- Live judging status -->
+    <div *ngIf="submissionId" class="live-panel">
+      <div class="live-row">
+        <span class="live-label">Submission #{{ submissionId }}</span>
+        <span class="status-pill" [class.status-done]="done">{{ liveStatus || 'QUEUED' }}</span>
+        <span *ngIf="liveVerdict" class="verdict verdict-{{ liveVerdict }}">{{ liveVerdict }}</span>
+      </div>
+      <a *ngIf="done" [routerLink]="['/submissions', submissionId]" class="result-link">
+        View full result →
+      </a>
+    </div>
+  </section>
+</div>

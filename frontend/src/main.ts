@@ -1,7 +1,5 @@
-// sockjs-client references the Node global `global`, which doesn't exist in the browser.
-// Alias it to the window before anything imports SockJS, or the app crashes at load.
-(globalThis as any).global = globalThis;
-
+// NOTE: the `global` alias sockjs-client needs is set in index.html's <head>, before any bundle JS
+// loads — it cannot live here because ES import hoisting evaluates the sockjs import graph first.
 import { bootstrapApplication } from '@angular/platform-browser';
 import { AppComponent } from './app/app.component';
 import { appConfig } from './app/app.config';

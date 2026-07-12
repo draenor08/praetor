@@ -1,0 +1,132 @@
+.page-title {
+  margin: 0;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.status-pill {
+  font-size: 0.8rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  background-color: rgba(99, 102, 241, 0.15);
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+/* ---- Meta ---- */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 2.5rem;
+  margin: 0 0 1.5rem;
+  padding: 1rem 1.25rem;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.meta div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.meta dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.meta dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ---- Compile log ---- */
+.compile-log h3,
+.results-title {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.5rem;
+}
+
+.compile-log pre {
+  margin: 0 0 1.5rem;
+  padding: 0.9rem 1rem;
+  background-color: #0f172a;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  color: var(--error-color);
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+/* ---- Result table ---- */
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.result-table th,
+.result-table td {
+  text-align: left;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.result-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.result-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.col-ord {
+  width: 3rem;
+}
+
+.col-num {
+  width: 8rem;
+}
+
+/* ---- Verdict badges (semantic, theme-independent) ---- */
+.verdict {
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+}
+.verdict-AC  { color: #58c17a; background: rgba(88, 193, 122, 0.12); }
+.verdict-WA  { color: #ef5b5b; background: rgba(239, 91, 91, 0.12); }
+.verdict-TLE { color: #d9b64a; background: rgba(217, 182, 74, 0.12); }
+.verdict-MLE { color: #a98bf0; background: rgba(169, 139, 240, 0.12); }
+.verdict-RE  { color: #f0763c; background: rgba(240, 118, 60, 0.12); }
+.verdict-CE  { color: #8b97a8; background: rgba(139, 151, 168, 0.12); }
+.verdict-PE  { color: #9aa84a; background: rgba(154, 168, 74, 0.12); }
