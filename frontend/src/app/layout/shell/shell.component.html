@@ -1,0 +1,26 @@
+<div class="shell">
+  <aside class="rail">
+    <a routerLink="/problems" class="rail-brand">Praetor</a>
+    <nav class="rail-nav">
+      <a *ngFor="let link of links"
+         [routerLink]="link.path"
+         routerLinkActive="active"
+         class="rail-link">
+        <span class="rail-icon" aria-hidden="true">{{ link.icon }}</span>
+        <span class="rail-label">{{ link.label }}</span>
+      </a>
+    </nav>
+  </aside>
+
+  <div class="shell-body">
+    <header class="topbar">
+      <span class="topbar-spacer"></span>
+      <span class="topbar-user">{{ username }}</span>
+      <button type="button" class="btn-logout" (click)="logout()">Logout</button>
+    </header>
+
+    <main class="shell-content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>
