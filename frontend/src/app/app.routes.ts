@@ -6,6 +6,8 @@ import { ComingSoonComponent } from './shared/components/coming-soon/coming-soon
 import { ProblemListComponent } from './features/problems/problem-list/problem-list.component';
 import { ProblemDetailComponent } from './features/problems/problem-detail/problem-detail.component';
 import { SubmissionDetailComponent } from './features/submissions/submission-detail/submission-detail.component';
+import { AboutComponent } from './features/about/about.component';
+import { NotFoundComponent } from './features/not-found/not-found.component';
 import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -28,9 +30,11 @@ export const routes: Routes = [
       { path: 'standings', component: ComingSoonComponent, data: { title: 'Standings' } },
       { path: 'submissions', component: ComingSoonComponent, data: { title: 'Submissions' } },
       { path: 'profile', component: ComingSoonComponent, data: { title: 'Profile' } },
-      { path: '', redirectTo: 'problems', pathMatch: 'full' }
+      { path: 'about', component: AboutComponent },
+      { path: '', redirectTo: 'problems', pathMatch: 'full' },
+      // Unknown URLs render a real 404 inside the shell (keeps rail + topbar).
+      // Must stay LAST among the shell children so concrete paths match first.
+      { path: '**', component: NotFoundComponent }
     ]
-  },
-
-  { path: '**', redirectTo: '' }
+  }
 ];

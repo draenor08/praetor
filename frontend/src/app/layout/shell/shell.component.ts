@@ -35,7 +35,8 @@ export class ShellComponent {
     { path: '/contests', label: 'Contests', icon: '☰' },
     { path: '/standings', label: 'Standings', icon: '▤' },
     { path: '/submissions', label: 'Submissions', icon: '⟳' },
-    { path: '/profile', label: 'Profile', icon: '◈' }
+    { path: '/profile', label: 'Profile', icon: '◈' },
+    { path: '/about', label: 'About', icon: 'ⓘ' }
   ];
 
   get username(): string {
