@@ -134,6 +134,9 @@ CREATE TABLE submission_results (
                   CHECK (verdict IN ('AC','WA','TLE','MLE','RE','CE','PE')),
     time_ms       INTEGER,
     mem_kb        INTEGER,
+    -- feat 3d: program stdout of the first failing case, for the practice-mode reveal only.
+    -- Truncated (~4KB) at capture; null on AC rows and when there is no per-test output (CE).
+    actual_output TEXT,
     UNIQUE (submission_id, test_case_id)
 );
 

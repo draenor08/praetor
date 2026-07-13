@@ -36,16 +36,30 @@ public class SubmissionResult {
     @Column(name = "mem_kb")
     private Integer memKb;
 
+    /**
+     * Program stdout for the first failing test case (feat 3d practice reveal). Truncated at capture;
+     * null on AC rows. Never exposed for a contest submission — the gate lives in the read path.
+     */
+    @Column(name = "actual_output")
+    private String actualOutput;
+
     protected SubmissionResult() {
     }
 
+    /** AC rows (and any row with no captured output) use this — {@code actualOutput} stays null. */
     public SubmissionResult(Long submissionId, Long testCaseId, String verdict,
                             Integer timeMs, Integer memKb) {
+        this(submissionId, testCaseId, verdict, timeMs, memKb, null);
+    }
+
+    public SubmissionResult(Long submissionId, Long testCaseId, String verdict,
+                            Integer timeMs, Integer memKb, String actualOutput) {
         this.submissionId = submissionId;
         this.testCaseId = testCaseId;
         this.verdict = verdict;
         this.timeMs = timeMs;
         this.memKb = memKb;
+        this.actualOutput = actualOutput;
     }
 
     public Long getId() {
@@ -70,5 +84,9 @@ public class SubmissionResult {
 
     public Integer getMemKb() {
         return memKb;
+    }
+
+    public String getActualOutput() {
+        return actualOutput;
     }
 }

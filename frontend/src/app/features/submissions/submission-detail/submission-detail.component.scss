@@ -130,3 +130,44 @@
 .verdict-RE  { color: #f0763c; background: rgba(240, 118, 60, 0.12); }
 .verdict-CE  { color: #8b97a8; background: rgba(139, 151, 168, 0.12); }
 .verdict-PE  { color: #9aa84a; background: rgba(154, 168, 74, 0.12); }
+
+/* ---- Practice-mode reveal (feat 3d) ---- */
+.reveal-row td {
+  background-color: #0f172a;
+  padding: 0.9rem 1rem;
+}
+
+.reveal-row .sample {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 720px) {
+  .reveal-row .sample {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reveal-row .sample-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.reveal-row pre {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  color: var(--text-color);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow-y: auto;
+}
