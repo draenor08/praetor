@@ -6,6 +6,8 @@ import com.praetor.submission.SubmissionStatus;
 import com.praetor.submission.Verdict;
 import com.praetor.submission.config.JudgeProperties;
 import com.praetor.submission.dto.SubmissionStatusEvent;
+import com.praetor.submission.engine.checker.Checker;
+import com.praetor.submission.engine.checker.Checkers;
 import com.praetor.submission.entity.JudgeProblem;
 import com.praetor.submission.entity.JudgeTestCase;
 import com.praetor.submission.entity.Submission;
@@ -97,8 +99,10 @@ public class JudgeService {
             push(owner, id, SubmissionStatus.ERROR, null);
             return;
         }
-        if (!"EXACT".equals(problem.getJudgeMode())) {
-            log.warn("submission {} problem {} judge_mode {} not supported yet", id,
+        Checker checker = Checkers.of(problem.getJudgeMode(), problem.getFloatEps());
+        if (checker == null) {
+            // SPECIAL (custom checker) or an unknown mode — not supported.
+            log.warn("submission {} problem {} judge_mode {} not supported", id,
                     problem.getSlug(), problem.getJudgeMode());
             markError(id);
             push(owner, id, SubmissionStatus.ERROR, null);
@@ -130,7 +134,7 @@ public class JudgeService {
             int maxMem = 0;
             for (JudgeTestCase tc : tests) {
                 RunResult rr = sandbox.run(runId, language, tc, limits);
-                String v = evaluator.evaluate(rr, tc.getExpected(), limits);
+                String v = evaluator.evaluate(rr, tc.getExpected(), limits, checker);
                 maxTime = Math.max(maxTime, rr.wallMs());
                 if (rr.memKb() != null) {
                     maxMem = Math.max(maxMem, rr.memKb());

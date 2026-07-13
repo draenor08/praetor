@@ -63,6 +63,21 @@ INSERT INTO test_cases (problem_id, ord, kind, input, expected) VALUES
   ((SELECT id FROM problems WHERE slug='circle-area'), 2, 'HIDDEN', '2', '12.56637061'),
   ((SELECT id FROM problems WHERE slug='circle-area'), 3, 'HIDDEN', '10', '314.15926536');
 
+-- Problem 4: Sort Three (TOKEN — whitespace-insensitive) --------------------
+INSERT INTO problems (slug, title, statement, constraints, difficulty, judge_mode, created_by)
+VALUES ('sort-three', 'Sort Three',
+        'Read three integers. Output them in non-decreasing order (any whitespace between them).',
+        '-1e9 <= each <= 1e9', 900, 'TOKEN',
+        (SELECT id FROM users WHERE username='setter01'));
+
+INSERT INTO problem_tags (problem_id, tag_id)
+SELECT (SELECT id FROM problems WHERE slug='sort-three'), id FROM tags WHERE name='implementation';
+
+INSERT INTO test_cases (problem_id, ord, kind, input, expected) VALUES
+  ((SELECT id FROM problems WHERE slug='sort-three'), 1, 'SAMPLE', '3 1 2',   '1 2 3'),
+  ((SELECT id FROM problems WHERE slug='sort-three'), 2, 'HIDDEN', '5 5 5',   '5 5 5'),
+  ((SELECT id FROM problems WHERE slug='sort-three'), 3, 'HIDDEN', '9 -1 0',  '-1 0 9');
+
 -- A live contest with the 3 problems --------------------------------------
 INSERT INTO contests (title, starts_at, ends_at, freeze_min, scoring)
 VALUES ('Praetor Demo Round 1', now() - interval '10 minutes', now() + interval '2 hours', 15, 'ICPC');
