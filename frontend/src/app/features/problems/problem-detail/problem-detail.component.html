@@ -50,8 +50,7 @@
       </button>
     </div>
 
-    <textarea class="code-editor" [(ngModel)]="sourceCode" [disabled]="submitting"
-              spellcheck="false" placeholder="// paste your C++ solution here"></textarea>
+    <div #editorHost class="code-editor" aria-label="C++ code editor"></div>
 
     <p *ngIf="submitError" class="error-message">{{ submitError }}</p>
 
