@@ -13,9 +13,9 @@ import com.praetor.submission.entity.JudgeTestCase;
  */
 public interface SandboxRunner {
 
-    CompileResult compile(String runId, String sourceCode);
+    CompileResult compile(String runId, Language language, String sourceCode);
 
-    RunResult run(String runId, JudgeTestCase testCase, RunLimits limits);
+    RunResult run(String runId, Language language, JudgeTestCase testCase, RunLimits limits);
 
     /** Remove the per-run working directory / any leftover containers. Best-effort. */
     default void cleanup(String runId) {

@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 
 /**
  * POST /api/submissions request body. {@code contestId} is optional (null = practice).
- * {@code language} is validated for the supported set in the service (CPP only in this slice).
+ * {@code language} is validated against the supported {@code Language} set in the service (CPP, PYTHON).
  */
 public record SubmitRequest(
         @NotBlank String problemSlug,

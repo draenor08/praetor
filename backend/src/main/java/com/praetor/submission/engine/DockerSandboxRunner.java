@@ -48,18 +48,19 @@ public class DockerSandboxRunner implements SandboxRunner {
     }
 
     @Override
-    public CompileResult compile(String runId, String sourceCode) {
+    public CompileResult compile(String runId, Language language, String sourceCode) {
         Path dir = runDir(runId);
         try {
             Files.createDirectories(dir);
             // world-writable: the backend writes as root, the uid-1000 judge user writes prog/time.txt
             Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwxrwxrwx"));
-            Files.writeString(dir.resolve("main.cpp"), sourceCode == null ? "" : sourceCode);
+            Files.writeString(dir.resolve(language.sourceFile()), sourceCode == null ? "" : sourceCode);
         } catch (IOException e) {
             throw new SandboxException("prepare work dir failed for " + runId, e);
         }
-        List<String> cmd = dockerRun(runId,
-                List.of("g++", "-O2", "-std=gnu++17", "-o", "prog", "main.cpp"));
+        // For interpreted languages compileCmd is a syntax check (py_compile) — a syntax error still
+        // exits non-zero with stderr and is reported as CE, same path as a C++ compile error.
+        List<String> cmd = dockerRun(runId, props.memMb(), language.compileCmd());
         DockerExecUtil.ExecOutcome o = docker.exec(cmd, 64 * 1024, 30_000);
         if (o.hostTimedOut()) {
             return new CompileResult(false, "Compilation timed out.");
@@ -71,7 +72,7 @@ public class DockerSandboxRunner implements SandboxRunner {
     }
 
     @Override
-    public RunResult run(String runId, JudgeTestCase testCase, RunLimits limits) {
+    public RunResult run(String runId, Language language, JudgeTestCase testCase, RunLimits limits) {
         Path dir = runDir(runId);
         try {
             Files.writeString(dir.resolve("input.txt"),
@@ -80,10 +81,10 @@ public class DockerSandboxRunner implements SandboxRunner {
             throw new SandboxException("write input failed for " + runId, e);
         }
         int hardWallSec = Math.max(1, (int) Math.ceil(limits.hardWallMs() / 1000.0));
-        // /usr/bin/time -v -o time.txt   timeout -s KILL <hard>s   ./prog < input.txt
+        // /usr/bin/time -v -o time.txt   timeout -s KILL <hard>s   <run cmd> < input.txt
         String script = "/usr/bin/time -v -o time.txt timeout -s KILL "
-                + hardWallSec + "s ./prog < input.txt";
-        List<String> cmd = dockerRun(runId, List.of("sh", "-c", script));
+                + hardWallSec + "s " + String.join(" ", language.runCmd()) + " < input.txt";
+        List<String> cmd = dockerRun(runId, limits.memMb(), List.of("sh", "-c", script));
         long hostTimeout = limits.hardWallMs() + 15_000L; // slack above the container timer for startup
         DockerExecUtil.ExecOutcome o = docker.exec(cmd, STDOUT_CAP, hostTimeout);
 
@@ -124,12 +125,14 @@ public class DockerSandboxRunner implements SandboxRunner {
         return Path.of(props.workDir(), runId);
     }
 
-    /** Builds the locked-down {@code docker run} argv for a command executed inside the run dir. */
-    private List<String> dockerRun(String runId, List<String> containerCmd) {
+    /** Builds the locked-down {@code docker run} argv for a command executed inside the run dir.
+     * {@code memMb} is the container memory cap — the run phase passes the per-language-scaled
+     * {@code limits.memMb()} so an interpreted runtime isn't OOM-killed below its MLE threshold. */
+    private List<String> dockerRun(String runId, int memMb, List<String> containerCmd) {
         List<String> c = new ArrayList<>(List.of(
                 "docker", "run", "--rm",
                 "--network", "none",
-                "--memory", props.memMb() + "m",
+                "--memory", memMb + "m",
                 "--cpus", "1",
                 "--pids-limit", String.valueOf(props.pidsMax()),
                 "-v", props.volumeName() + ":" + props.workDir(),

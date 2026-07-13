@@ -9,6 +9,7 @@ import com.praetor.submission.dto.SubmissionCreatedResponse;
 import com.praetor.submission.dto.SubmissionResponse;
 import com.praetor.submission.dto.SubmitRequest;
 import com.praetor.submission.engine.JudgeService;
+import com.praetor.submission.engine.Language;
 import com.praetor.submission.entity.JudgeProblem;
 import com.praetor.submission.entity.Submission;
 import com.praetor.submission.repository.JudgeProblemRepository;
@@ -46,7 +47,8 @@ public class SubmissionService {
      * thread could query it before the tx commits and find nothing.
      */
     public SubmissionCreatedResponse create(SubmitRequest req, User user) {
-        if (!"CPP".equals(req.language())) {
+        Language language = Language.from(req.language());
+        if (language == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "unsupported language: " + req.language());
         }
@@ -58,7 +60,7 @@ public class SubmissionService {
         sub.setUserId(user.getId());
         sub.setProblemId(problem.getId());
         sub.setContestId(req.contestId());
-        sub.setLanguage("CPP");
+        sub.setLanguage(language.name());
         sub.setSourceCode(req.sourceCode());
         sub.setStatus(SubmissionStatus.QUEUED);
         Submission saved = subRepo.save(sub);

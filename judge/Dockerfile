@@ -7,8 +7,8 @@
 FROM gcc:14
 
 # GNU `time` = /usr/bin/time (needed for -v: wall-clock + peak RSS %M). `timeout` is in
-# coreutils (already present in the base image).
-RUN apt-get update && apt-get install -y --no-install-recommends time \
+# coreutils (already present in the base image). python3 = the PYTHON judge language.
+RUN apt-get update && apt-get install -y --no-install-recommends time python3 \
  && rm -rf /var/lib/apt/lists/*
 
 # Unprivileged user; submissions never run as root inside the sandbox.
@@ -17,4 +17,4 @@ USER judge
 WORKDIR /work
 
 # No ENTRYPOINT: the backend passes the compile+run command per invocation.
-# (PR-2b adds python3 here for multi-language support.)
+# Rebuild on the HOST after changing this file: docker build -t praetor-judge:latest judge/

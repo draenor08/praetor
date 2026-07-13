@@ -40,8 +40,9 @@
     <div class="submit-row">
       <label>
         Language
-        <select [(ngModel)]="language" [disabled]="submitting">
+        <select [(ngModel)]="language" (ngModelChange)="onLanguageChange()" [disabled]="submitting">
           <option value="CPP">C++</option>
+          <option value="PYTHON">Python</option>
         </select>
       </label>
       <button type="button" class="btn-primary" (click)="submit()"

@@ -32,6 +32,7 @@ export class ProblemDetailComponent implements OnInit, OnDestroy {
   // NOT bundled through esbuild — that avoids the font/worker bundling issues and keeps monaco
   // out of the app bundle entirely. Typed `any` since the ESM types aren't imported.
   private editor?: any;
+  private monaco?: any;
   private static monacoLoading?: Promise<any>;
 
   problem?: ProblemDetail;
@@ -90,11 +91,24 @@ export class ProblemDetailComponent implements OnInit, OnDestroy {
     return ProblemDetailComponent.monacoLoading;
   }
 
+  private monacoLang(): string {
+    return this.language === 'PYTHON' ? 'python' : 'cpp';
+  }
+
+  /** Switch the editor's syntax highlighting when the language select changes. */
+  onLanguageChange(): void {
+    const model = this.editor?.getModel();
+    if (model && this.monaco) {
+      this.monaco.editor.setModelLanguage(model, this.monacoLang());
+    }
+  }
+
   private async initEditor(host: HTMLElement): Promise<void> {
     const monaco = await this.loadMonaco();
+    this.monaco = monaco;
     this.editor = monaco.editor.create(host, {
       value: this.sourceCode,
-      language: 'cpp',
+      language: this.monacoLang(),
       theme: 'vs-dark',
       automaticLayout: true, // internal ResizeObserver — no manual resize handling needed
       minimap: { enabled: false },
