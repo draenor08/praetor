@@ -27,12 +27,12 @@
   padding: 16px;
   border: 1px solid var(--border-soft);
   border-radius: 12px;
-  background: rgba(15, 11, 10, 0.55);
+  background: var(--surface-color);
 }
 
 .info-grid h3 {
   margin-top: 0;
-  color: #fff5e5;
+  color: var(--text-color);
 }
 
 @media (max-width: 900px) {

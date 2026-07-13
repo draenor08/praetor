@@ -10,6 +10,10 @@
   --error-color: #ef4444;
   --success-color: #10b981;
   --border-color: #334155;
+  /* Soft/aux tokens referenced by the feature pages (about/not-found; landing later). */
+  --border-soft: rgba(148, 163, 184, 0.14);
+  --serif: 'Georgia', 'Cambria', 'Times New Roman', serif;
+  --text-soft: #cbd5e1;
 }
 
 body {
@@ -211,4 +215,12 @@ a:hover {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* Small uppercase muted label used by the feature pages (about, 404, landing). */
+.eyebrow {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
 }
