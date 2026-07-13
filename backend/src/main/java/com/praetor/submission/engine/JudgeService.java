@@ -105,11 +105,19 @@ public class JudgeService {
             return;
         }
 
+        Language language = Language.from(sub.getLanguage());
+        if (language == null) {
+            log.warn("submission {} unsupported language {}", id, sub.getLanguage());
+            markError(id);
+            push(owner, id, SubmissionStatus.ERROR, null);
+            return;
+        }
+
         List<JudgeTestCase> tests = testCaseRepo.findByProblemIdOrderByOrdAsc(problem.getId());
-        RunLimits limits = buildLimits(problem);
+        RunLimits limits = buildLimits(problem, language);
         String runId = id + "-" + UUID.randomUUID();
         try {
-            CompileResult cr = sandbox.compile(runId, sub.getSourceCode());
+            CompileResult cr = sandbox.compile(runId, language, sub.getSourceCode());
             if (!cr.success()) {
                 markDone(id, Verdict.CE, null, null, cr.log(), List.of());
                 push(owner, id, SubmissionStatus.DONE, Verdict.CE);
@@ -121,7 +129,7 @@ public class JudgeService {
             int maxTime = 0;
             int maxMem = 0;
             for (JudgeTestCase tc : tests) {
-                RunResult rr = sandbox.run(runId, tc, limits);
+                RunResult rr = sandbox.run(runId, language, tc, limits);
                 String v = evaluator.evaluate(rr, tc.getExpected(), limits);
                 maxTime = Math.max(maxTime, rr.wallMs());
                 if (rr.memKb() != null) {
@@ -198,11 +206,16 @@ public class JudgeService {
         return s.length() <= cap ? s : s.substring(0, cap);
     }
 
-    private RunLimits buildLimits(JudgeProblem p) {
-        int soft = p.getTimeLimitMs() != null ? p.getTimeLimitMs() : 1000;
-        int hard = props.cpuSeconds() * 1000;
-        int memLimitKb = p.getMemLimitKb() != null ? p.getMemLimitKb() : 262_144;
-        return new RunLimits(soft, hard, props.memMb(), props.pidsMax(), memLimitKb);
+    private RunLimits buildLimits(JudgeProblem p, Language language) {
+        double t = language.timeMultiplier();
+        double m = language.memMultiplier();
+        int baseSoft = p.getTimeLimitMs() != null ? p.getTimeLimitMs() : 1000;
+        int baseMemKb = p.getMemLimitKb() != null ? p.getMemLimitKb() : 262_144;
+        int soft = (int) Math.round(baseSoft * t);
+        int hard = (int) Math.round(props.cpuSeconds() * 1000 * t);
+        int memLimitKb = (int) Math.round(baseMemKb * m);
+        int memMb = (int) Math.round(props.memMb() * m);
+        return new RunLimits(soft, hard, memMb, props.pidsMax(), memLimitKb);
     }
 
     private String ownerUsername(Long id) {

@@ -16,12 +16,12 @@ import org.springframework.stereotype.Component;
 public class StubSandboxRunner implements SandboxRunner {
 
     @Override
-    public CompileResult compile(String runId, String sourceCode) {
+    public CompileResult compile(String runId, Language language, String sourceCode) {
         return new CompileResult(true, "");
     }
 
     @Override
-    public RunResult run(String runId, JudgeTestCase testCase, RunLimits limits) {
+    public RunResult run(String runId, Language language, JudgeTestCase testCase, RunLimits limits) {
         // simulate a correct, fast, light program
         return new RunResult(0, testCase.getExpected(), 1, 1024, false, false);
     }
