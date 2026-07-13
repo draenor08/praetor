@@ -18,5 +18,6 @@ public record SubmissionResponse(
         Integer memKb,
         String compileLog,
         String createdAt,
+        boolean practice,
         List<ResultResponse> results) {
 }

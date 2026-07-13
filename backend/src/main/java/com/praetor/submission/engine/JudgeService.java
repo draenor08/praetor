@@ -39,6 +39,10 @@ public class JudgeService {
 
     private static final Logger log = LoggerFactory.getLogger(JudgeService.class);
 
+    /** Byte ceiling on the captured actual output stored for the reveal (separate from the sandbox
+     * stdout cap). Keeps a flood-output submission from bloating the row / response. */
+    private static final int DISPLAY_CAP = 4096;
+
     private final SubmissionRepository subRepo;
     private final SubmissionResultRepository resultRepo;
     private final JudgeProblemRepository problemRepo;
@@ -119,15 +123,19 @@ public class JudgeService {
             for (JudgeTestCase tc : tests) {
                 RunResult rr = sandbox.run(runId, tc, limits);
                 String v = evaluator.evaluate(rr, tc.getExpected(), limits);
-                results.add(new SubmissionResult(id, tc.getId(), v, rr.wallMs(), rr.memKb()));
                 maxTime = Math.max(maxTime, rr.wallMs());
                 if (rr.memKb() != null) {
                     maxMem = Math.max(maxMem, rr.memKb());
                 }
                 if (!Verdict.AC.equals(v)) {
-                    overall = v; // first non-AC decides the overall verdict
+                    // First non-AC decides the overall verdict. Capture its stdout (truncated) so
+                    // the practice-mode reveal can show it; the read path gates who ever sees it.
+                    results.add(new SubmissionResult(id, tc.getId(), v, rr.wallMs(), rr.memKb(),
+                            truncate(rr.stdout(), DISPLAY_CAP)));
+                    overall = v;
                     break;
                 }
+                results.add(new SubmissionResult(id, tc.getId(), v, rr.wallMs(), rr.memKb()));
             }
             markDone(id, overall, maxTime, maxMem, "", results);
             push(owner, id, SubmissionStatus.DONE, overall);
@@ -180,6 +188,14 @@ public class JudgeService {
             }
             subRepo.save(sub);
         });
+    }
+
+    /** Null-tolerant prefix truncation ({@code rr.stdout()} is null for TLE/RE). */
+    private static String truncate(String s, int cap) {
+        if (s == null) {
+            return null;
+        }
+        return s.length() <= cap ? s : s.substring(0, cap);
     }
 
     private RunLimits buildLimits(JudgeProblem p) {

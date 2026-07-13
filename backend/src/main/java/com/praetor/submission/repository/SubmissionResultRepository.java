@@ -20,4 +20,17 @@ public interface SubmissionResultRepository extends JpaRepository<SubmissionResu
             + "where tc.id = r.testCaseId and r.submissionId = :submissionId "
             + "order by tc.ord")
     List<ResultView> findResultViews(@Param("submissionId") Long submissionId);
+
+    /**
+     * The failing test case's input/expected/actual for the practice-mode reveal (feat 3d). The
+     * judge loop breaks on the first non-AC, so at most one non-AC row exists; the {@code <> 'AC'}
+     * filter + {@code findFirst} is defensive. CALL ONLY after the practice/non-contest gate passes
+     * — this is the one query that surfaces hidden test-case input/expected to a user.
+     */
+    @Query("select tc.ord as ord, tc.input as input, tc.expected as expected, "
+            + "r.actualOutput as actualOutput "
+            + "from SubmissionResult r, JudgeTestCase tc "
+            + "where tc.id = r.testCaseId and r.submissionId = :submissionId and r.verdict <> 'AC' "
+            + "order by tc.ord")
+    List<RevealView> findFailingReveal(@Param("submissionId") Long submissionId);
 }

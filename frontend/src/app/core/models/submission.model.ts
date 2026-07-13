@@ -12,15 +12,20 @@ export interface SubmissionCreated {
   status: string;
 }
 
-/** One test case's outcome. */
+/** One test case's outcome. input/expected/actualOutput are the practice reveal (feat 3d) —
+ * present only on the first failing row of a practice submission; null everywhere else. */
 export interface TestResult {
   ord: number;
   verdict: string;
   timeMs: number | null;
   memKb: number | null;
+  input?: string | null;
+  expected?: string | null;
+  actualOutput?: string | null;
 }
 
-/** GET /api/submissions/{id}. verdict/timeMs/memKb null and results empty until judged. */
+/** GET /api/submissions/{id}. verdict/timeMs/memKb null and results empty until judged.
+ * practice = not part of a contest (contestId == null) → the failing-case reveal may be shown. */
 export interface SubmissionResponse {
   id: number;
   handle: string;
@@ -32,5 +37,6 @@ export interface SubmissionResponse {
   memKb: number | null;
   compileLog: string | null;
   createdAt: string;
+  practice: boolean;
   results: TestResult[];
 }

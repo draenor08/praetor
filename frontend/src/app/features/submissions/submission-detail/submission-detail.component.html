@@ -32,12 +32,33 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let r of s.results">
-        <td class="col-ord num">{{ r.ord }}</td>
-        <td><span class="verdict verdict-{{ r.verdict }}">{{ r.verdict }}</span></td>
-        <td class="col-num num">{{ r.timeMs != null ? r.timeMs + ' ms' : '—' }}</td>
-        <td class="col-num num">{{ r.memKb != null ? r.memKb + ' KB' : '—' }}</td>
-      </tr>
+      <ng-container *ngFor="let r of s.results">
+        <tr>
+          <td class="col-ord num">{{ r.ord }}</td>
+          <td><span class="verdict verdict-{{ r.verdict }}">{{ r.verdict }}</span></td>
+          <td class="col-num num">{{ r.timeMs != null ? r.timeMs + ' ms' : '—' }}</td>
+          <td class="col-num num">{{ r.memKb != null ? r.memKb + ' KB' : '—' }}</td>
+        </tr>
+        <!-- Practice-mode reveal: only the first failing row of a practice submission carries this. -->
+        <tr *ngIf="s.practice && r.input != null" class="reveal-row">
+          <td colspan="4">
+            <div class="sample">
+              <div class="sample-col">
+                <div class="sample-label">Input</div>
+                <pre>{{ r.input }}</pre>
+              </div>
+              <div class="sample-col">
+                <div class="sample-label">Expected</div>
+                <pre>{{ r.expected }}</pre>
+              </div>
+              <div class="sample-col">
+                <div class="sample-label">Your output</div>
+                <pre>{{ r.actualOutput }}</pre>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </ng-container>
       <tr *ngIf="s.results.length === 0">
         <td colspan="4" class="muted">No per-test results (not judged, or a compile error).</td>
       </tr>
