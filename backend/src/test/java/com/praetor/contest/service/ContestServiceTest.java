@@ -93,6 +93,21 @@ class ContestServiceTest {
         verify(contestRepo, never()).save(any());
     }
 
+    // ---- list ----
+    @Test
+    void list_mapsRows() {
+        when(contestRepo.findAll()).thenReturn(List.of(
+                new Contest("Round A", start, end, 15, "ICPC"),
+                new Contest("Round B", start, end, 0, "ICPC")));
+
+        var summaries = service.list();
+
+        assertThat(summaries).hasSize(2);
+        assertThat(summaries.get(0).title()).isEqualTo("Round A");
+        assertThat(summaries.get(0).scoring()).isEqualTo("ICPC");
+        assertThat(summaries.get(0).startsAt()).isEqualTo(start.toInstant().toString());
+    }
+
     // ---- register ----
     @Test
     void register_ok() {

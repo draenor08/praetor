@@ -6,6 +6,8 @@ import { ComingSoonComponent } from './shared/components/coming-soon/coming-soon
 import { ProblemListComponent } from './features/problems/problem-list/problem-list.component';
 import { ProblemDetailComponent } from './features/problems/problem-detail/problem-detail.component';
 import { SubmissionDetailComponent } from './features/submissions/submission-detail/submission-detail.component';
+import { ContestListComponent } from './features/contests/contest-list/contest-list.component';
+import { ContestDetailComponent } from './features/contests/contest-detail/contest-detail.component';
 import { AboutComponent } from './features/about/about.component';
 import { NotFoundComponent } from './features/not-found/not-found.component';
 import { authGuard } from './core/guards/auth.guard';
@@ -26,8 +28,10 @@ export const routes: Routes = [
       { path: 'problems', component: ProblemListComponent },
       { path: 'problems/:slug', component: ProblemDetailComponent },
       { path: 'submissions/:id', component: SubmissionDetailComponent },
-      { path: 'contests', component: ComingSoonComponent, data: { title: 'Contests' } },
-      { path: 'standings', component: ComingSoonComponent, data: { title: 'Standings' } },
+      { path: 'contests', component: ContestListComponent },
+      { path: 'contests/:id', component: ContestDetailComponent },
+      // Standings are per-contest → live inside a contest's detail page.
+      { path: 'standings', redirectTo: 'contests', pathMatch: 'full' },
       { path: 'submissions', component: ComingSoonComponent, data: { title: 'Submissions' } },
       { path: 'profile', component: ComingSoonComponent, data: { title: 'Profile' } },
       { path: 'about', component: AboutComponent },

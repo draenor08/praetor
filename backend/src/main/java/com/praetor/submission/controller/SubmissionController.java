@@ -38,4 +38,11 @@ public class SubmissionController {
     public SubmissionResponse get(@PathVariable Long id, @AuthenticationPrincipal User user) {
         return service.get(id, user);
     }
+
+    /** Re-run an existing submission (FR-27). ADMIN only (403). 202 Accepted, re-judged async. */
+    @PostMapping("/{id}/rejudge")
+    public ResponseEntity<SubmissionCreatedResponse> rejudge(@PathVariable Long id,
+                                                             @AuthenticationPrincipal User user) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.rejudge(id, user));
+    }
 }

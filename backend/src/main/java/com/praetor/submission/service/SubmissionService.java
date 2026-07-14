@@ -19,7 +19,9 @@ import com.praetor.submission.repository.SubmissionResultRepository;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -30,15 +32,17 @@ public class SubmissionService {
     private final JudgeProblemRepository problemRepo;
     private final UserRepository userRepo;
     private final JudgeService judgeService;
+    private final TransactionTemplate tx;
 
     public SubmissionService(SubmissionRepository subRepo, SubmissionResultRepository resultRepo,
                              JudgeProblemRepository problemRepo, UserRepository userRepo,
-                             JudgeService judgeService) {
+                             JudgeService judgeService, PlatformTransactionManager txManager) {
         this.subRepo = subRepo;
         this.resultRepo = resultRepo;
         this.problemRepo = problemRepo;
         this.userRepo = userRepo;
         this.judgeService = judgeService;
+        this.tx = new TransactionTemplate(txManager);
     }
 
     /**
@@ -67,6 +71,34 @@ public class SubmissionService {
 
         judgeService.enqueue(saved.getId());
         return new SubmissionCreatedResponse(saved.getId(), saved.getStatus());
+    }
+
+    /**
+     * Re-run an already-judged submission (FR-27) — ADMIN only. Deletes the prior per-testcase
+     * results, resets the submission to QUEUED (clearing verdict/time/mem/compileLog), then re-hands
+     * it to the async judge. The reset + delete run in one committed tx BEFORE {@code enqueue} — same
+     * ordering {@code create} relies on, so the judge thread sees the committed QUEUED row (and
+     * {@link JudgeService#enqueue}'s {@code claim()} re-accepts it). If the submission belongs to a
+     * contest, judging completion fires {@code ContestSubmissionJudgedEvent} → standings recompute,
+     * so a flipped verdict propagates to the board.
+     */
+    public SubmissionCreatedResponse rejudge(Long id, User user) {
+        if (!"ADMIN".equals(user.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "only ADMIN may rejudge");
+        }
+        tx.executeWithoutResult(s -> {
+            Submission sub = subRepo.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "submission not found"));
+            resultRepo.deleteBySubmissionId(id);
+            sub.setStatus(SubmissionStatus.QUEUED);
+            sub.setVerdict(null);
+            sub.setTimeMs(null);
+            sub.setMemKb(null);
+            sub.setCompileLog(null);
+            subRepo.save(sub);
+        });
+        judgeService.enqueue(id);
+        return new SubmissionCreatedResponse(id, SubmissionStatus.QUEUED);
     }
 
     @Transactional(readOnly = true)

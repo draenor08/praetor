@@ -1,0 +1,30 @@
+<h1 class="page-title">Contests</h1>
+
+<p *ngIf="loading" class="muted">Loading…</p>
+<p *ngIf="error" class="error-message">{{ error }}</p>
+
+<table *ngIf="!loading && !error" class="contest-table">
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th class="col-status">Status</th>
+      <th class="col-when">Starts</th>
+      <th class="col-when">Ends</th>
+      <th class="col-mode">Scoring</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let c of contests">
+      <td><a [routerLink]="['/contests', c.id]">{{ c.title }}</a></td>
+      <td class="col-status">
+        <span class="status-pill status-{{ status(c) }}">{{ status(c) }}</span>
+      </td>
+      <td class="col-when num">{{ c.startsAt | date:'MMM d, HH:mm' }}</td>
+      <td class="col-when num">{{ c.endsAt | date:'MMM d, HH:mm' }}</td>
+      <td class="col-mode"><span class="tag">{{ c.scoring }}</span></td>
+    </tr>
+    <tr *ngIf="contests.length === 0">
+      <td colspan="5" class="muted">No contests yet.</td>
+    </tr>
+  </tbody>
+</table>

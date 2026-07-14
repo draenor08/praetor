@@ -266,21 +266,19 @@ Baseline auth (register/login/roles/profile) is required but **not** counted. Op
 | FR-20 | Contest registration | `RegistrationController`, `RegistrationService` | `contest-detail.component` |
 | FR-25 | Per-user solve statistics | `StatsController`, `StatsService` | `stats.component` |
 
-## Run (once scaffolded)
+## Run
 ```bash
-docker compose up                 # postgres + backend + frontend
-# schema + seed auto-applied on first boot
-# browse http://localhost:4200
+cp .env.example .env              # host ports, JWT/DB config (git-ignored)
+docker build -t praetor-judge:latest judge/   # one-time: the sandbox image (not a compose service)
+docker compose up --build         # postgres + backend + frontend
+# schema + seed auto-applied by postgres initdb on the first (empty) volume
+# browse http://localhost:4200   (API proxied at /api, WebSocket at /ws)
 ```
+Rebuild the judge image after any change under `judge/`. If the DB schema changes, reset the volume
+once with `docker compose down -v` before the next `up` (ddl-auto=none — it won't self-migrate).
 
-## DB setup (manual, before docker-compose exists)
-```bash
-createdb praetor
-psql -d praetor -f db/schema.sql
-psql -d praetor -f db/seed.sql
-```
-Seed loads 3 problems (EXACT, EXACT, FLOAT/special-judge), 1 live contest, 4 users.
-Dev login: any handle + password `password`.
+Seed loads 4 problems, 1 live contest, 4 users. **Seed user password hashes are placeholders — the
+seed users can't log in yet; register a fresh account for local dev** (auth landmine, tracked).
 
 ## Insulation rule (why seed matters)
 Engine reads problems/testcases **straight from the DB** (`ProblemRepository`, `TestCaseRepository`), not through another module's controllers. Broken CRUD → seed still fills the tables → judging + demo survive.

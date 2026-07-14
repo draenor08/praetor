@@ -145,6 +145,7 @@ Judging covers: sandboxed execution (FR-4), multi-language (FR-5), per-test-case
 | Method | Path | Auth | Notes |
 |---|---|---|---|
 | POST | `/api/contests` | ADMIN | create; time window + problem set (FR-17) |
+| GET  | `/api/contests` | any | list (meta only: `id,title,startsAt,endsAt,scoring`) |
 | GET  | `/api/contests/{id}` | any | meta + problem labels |
 | GET  | `/api/contests/{id}/standings` | any | snapshot; respects freeze (FR-18, FR-19, FR-21) |
 | POST | `/api/contests/{id}/register` | USER | `{virtual:false}` (FR-20) |

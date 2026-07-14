@@ -1,6 +1,7 @@
 package com.praetor.contest.controller;
 
 import com.praetor.contest.dto.ContestResponse;
+import com.praetor.contest.dto.ContestSummary;
 import com.praetor.contest.dto.CreateContestRequest;
 import com.praetor.contest.dto.RegisterRequest;
 import com.praetor.contest.dto.StandingsResponse;
@@ -8,6 +9,7 @@ import com.praetor.contest.service.ContestService;
 import com.praetor.contest.standings.StandingsService;
 import com.praetor.identity.entity.User;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -35,6 +37,12 @@ public class ContestController {
     public ResponseEntity<ContestResponse> create(@Valid @RequestBody CreateContestRequest req,
                                                   @AuthenticationPrincipal User user) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(req, user));
+    }
+
+    /** All contests (meta only). Public (see ContestWebSecurityConfig). */
+    @GetMapping
+    public List<ContestSummary> list() {
+        return service.list();
     }
 
     /** Contest meta + problem labels. Public (see ContestWebSecurityConfig). */

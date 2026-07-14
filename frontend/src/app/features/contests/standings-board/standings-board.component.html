@@ -1,0 +1,37 @@
+<div *ngIf="standings as st">
+  <div *ngIf="st.frozen" class="freeze">
+    ❄ Scoreboard frozen — cells marked <b>?</b> have pending activity hidden until the freeze lifts.
+  </div>
+
+  <table class="standings-table">
+    <thead>
+      <tr>
+        <th class="col-rank">#</th>
+        <th>Who</th>
+        <th class="col-num">Solved</th>
+        <th class="col-num">Penalty</th>
+        <th class="col-prob" *ngFor="let p of problems">{{ p.label }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of st.rows" [class.me-row]="row.handle === myHandle">
+        <td class="col-rank num">{{ row.rank }}</td>
+        <td>
+          <span class="handle">{{ row.handle }}</span>
+          <span *ngIf="row.handle === myHandle" class="you-tag">you</span>
+        </td>
+        <td class="col-num num">{{ row.solved }}</td>
+        <td class="col-num num muted">{{ row.penalty }}</td>
+        <td class="col-prob" *ngFor="let cell of row.problems">
+          <span class="st-cell" [ngClass]="cellClass(cell)">
+            {{ cellMain(cell) }}
+            <small *ngIf="cellSub(cell)">{{ cellSub(cell) }}</small>
+          </span>
+        </td>
+      </tr>
+      <tr *ngIf="st.rows.length === 0">
+        <td [attr.colspan]="4 + problems.length" class="muted">No participants yet.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

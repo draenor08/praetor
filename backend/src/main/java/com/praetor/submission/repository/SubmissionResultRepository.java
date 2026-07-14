@@ -3,12 +3,23 @@ package com.praetor.submission.repository;
 import com.praetor.submission.entity.SubmissionResult;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface SubmissionResultRepository extends JpaRepository<SubmissionResult, Long> {
+
+    /**
+     * Delete all per-testcase rows of a submission — used by rejudge (FR-27) before re-enqueue. The
+     * re-judge re-inserts rows via {@code saveAll}, and {@code submission_results} has
+     * {@code UNIQUE(submission_id, test_case_id)}, so the old rows MUST go first. Also clears the
+     * stale practice-reveal {@code actual_output} (it lives on these rows, no separate store).
+     */
+    @Modifying
+    @Query("delete from SubmissionResult r where r.submissionId = :submissionId")
+    void deleteBySubmissionId(@Param("submissionId") Long submissionId);
 
     /**
      * Per-test-case results for a submission, ordered by the test case's {@code ord}. Joins the
