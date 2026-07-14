@@ -1,5 +1,6 @@
 package com.praetor.submission.engine;
 
+import com.praetor.common.event.ContestSubmissionJudgedEvent;
 import com.praetor.identity.entity.User;
 import com.praetor.identity.repository.UserRepository;
 import com.praetor.submission.SubmissionStatus;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -54,13 +56,15 @@ public class JudgeService {
     private final SimpMessagingTemplate messaging;
     private final JudgeProperties props;
     private final UserRepository userRepo;
+    private final ApplicationEventPublisher events;
     private final TransactionTemplate tx;
 
     public JudgeService(SubmissionRepository subRepo, SubmissionResultRepository resultRepo,
                         JudgeProblemRepository problemRepo, JudgeTestCaseRepository testCaseRepo,
                         SandboxRunner sandbox, VerdictEvaluator evaluator,
                         SimpMessagingTemplate messaging, JudgeProperties props,
-                        UserRepository userRepo, PlatformTransactionManager txManager) {
+                        UserRepository userRepo, ApplicationEventPublisher events,
+                        PlatformTransactionManager txManager) {
         this.subRepo = subRepo;
         this.resultRepo = resultRepo;
         this.problemRepo = problemRepo;
@@ -70,6 +74,7 @@ public class JudgeService {
         this.messaging = messaging;
         this.props = props;
         this.userRepo = userRepo;
+        this.events = events;
         this.tx = new TransactionTemplate(txManager);
     }
 
@@ -125,6 +130,7 @@ public class JudgeService {
             if (!cr.success()) {
                 markDone(id, Verdict.CE, null, null, cr.log(), List.of());
                 push(owner, id, SubmissionStatus.DONE, Verdict.CE);
+                publishContestJudged(sub);
                 return;
             }
 
@@ -151,8 +157,20 @@ public class JudgeService {
             }
             markDone(id, overall, maxTime, maxMem, "", results);
             push(owner, id, SubmissionStatus.DONE, overall);
+            publishContestJudged(sub);
         } finally {
             sandbox.cleanup(runId);
+        }
+    }
+
+    /**
+     * Fire the contest-standings recompute for a judged contest submission. Called AFTER
+     * {@link #markDone} commits (the {@code TransactionTemplate} write is synchronous) so the
+     * contest listener re-reads the final verdict. No-op for practice (non-contest) submissions.
+     */
+    private void publishContestJudged(Submission sub) {
+        if (sub.getContestId() != null) {
+            events.publishEvent(new ContestSubmissionJudgedEvent(sub.getContestId()));
         }
     }
 
