@@ -2,6 +2,7 @@ package com.praetor.contest.service;
 
 import com.praetor.contest.dto.ContestProblemDto;
 import com.praetor.contest.dto.ContestResponse;
+import com.praetor.contest.dto.ContestSummary;
 import com.praetor.contest.dto.CreateContestRequest;
 import com.praetor.contest.dto.RegisterRequest;
 import com.praetor.contest.entity.Contest;
@@ -54,6 +55,15 @@ public class ContestService {
                 .toList();
         contestProblemRepo.saveAll(problems);
         return toResponse(contest);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContestSummary> list() {
+        return contestRepo.findAll().stream()
+                .map(c -> new ContestSummary(c.getId(), c.getTitle(),
+                        c.getStartsAt().toInstant().toString(),
+                        c.getEndsAt().toInstant().toString(), c.getScoring()))
+                .toList();
     }
 
     @Transactional(readOnly = true)

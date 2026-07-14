@@ -1,0 +1,32 @@
+<p *ngIf="loading" class="muted">Loading…</p>
+<p *ngIf="error" class="error-message">{{ error }}</p>
+
+<div *ngIf="contest as c">
+  <div class="detail-head">
+    <h1 class="page-title">{{ c.title }}</h1>
+    <span class="tag">{{ c.scoring }}</span>
+    <button class="btn-primary register-btn" (click)="register()" [disabled]="registering">
+      {{ registering ? 'Registering…' : 'Register' }}
+    </button>
+  </div>
+  <p *ngIf="registerMsg" class="register-msg">{{ registerMsg }}</p>
+
+  <dl class="meta">
+    <div><dt>Starts</dt><dd class="num">{{ c.startsAt | date:'MMM d, HH:mm' }}</dd></div>
+    <div><dt>Ends</dt><dd class="num">{{ c.endsAt | date:'MMM d, HH:mm' }}</dd></div>
+    <div *ngIf="c.freezeMin > 0"><dt>Freeze</dt><dd class="num">last {{ c.freezeMin }} min</dd></div>
+    <div>
+      <dt>Problems</dt>
+      <dd>
+        <span class="tag prob" *ngFor="let p of c.problems">{{ p.label }}</span>
+      </dd>
+    </div>
+  </dl>
+
+  <h3 class="results-title">Standings</h3>
+  <app-standings-board
+    [standings]="standings"
+    [problems]="c.problems"
+    [myHandle]="myHandle">
+  </app-standings-board>
+</div>

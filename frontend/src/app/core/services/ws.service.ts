@@ -46,9 +46,18 @@ export class WsService {
     return this.watch<SubmissionStatusEvent>(`/user/queue/submission/${id}`);
   }
 
-  /** Live standings for a contest: /topic/contest/{id}/standings. */
+  /** Live standings for a contest: /topic/contest/{id}/standings (frozen board during a freeze). */
   standings$(contestId: number): Observable<any> {
     return this.watch<any>(`/topic/contest/${contestId}/standings`);
+  }
+
+  /**
+   * Privileged live standings: /user/queue/contest/{id}/standings. The backend pushes the unfrozen
+   * board here to ADMIN/PROBLEM_SETTER subscribers during a freeze window (and replays a snapshot on
+   * subscribe). Non-privileged subscribers receive nothing on this destination.
+   */
+  liveStandings$(contestId: number): Observable<any> {
+    return this.watch<any>(`/user/queue/contest/${contestId}/standings`);
   }
 
   /** Subscribe to a destination; auto-(re)subscribes on (re)connect and parses JSON bodies. */

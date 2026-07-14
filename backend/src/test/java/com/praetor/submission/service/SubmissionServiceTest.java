@@ -23,6 +23,7 @@ import com.praetor.submission.repository.SubmissionResultRepository;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -38,9 +39,12 @@ class SubmissionServiceTest {
     private final JudgeProblemRepository problemRepo = mock(JudgeProblemRepository.class);
     private final UserRepository userRepo = mock(UserRepository.class);
     private final JudgeService judgeService = mock(JudgeService.class);
+    // A no-op mock manager is enough — TransactionTemplate still runs the callback (getTransaction
+    // returns a null status, commit is a no-op), which is all the rejudge tests need.
+    private final PlatformTransactionManager txManager = mock(PlatformTransactionManager.class);
 
     private final SubmissionService service =
-            new SubmissionService(subRepo, resultRepo, problemRepo, userRepo, judgeService);
+            new SubmissionService(subRepo, resultRepo, problemRepo, userRepo, judgeService, txManager);
 
     private static final long SUB_ID = 42L;
     private static final long OWNER_ID = 7L;
@@ -49,6 +53,13 @@ class SubmissionServiceTest {
         User u = new User();
         u.setId(OWNER_ID);
         u.setRole("USER");
+        return u;
+    }
+
+    private User admin() {
+        User u = new User();
+        u.setId(1L);
+        u.setRole("ADMIN");
         return u;
     }
 
@@ -168,6 +179,49 @@ class SubmissionServiceTest {
                 .isInstanceOf(ResponseStatusException.class);
         verify(resultRepo, never()).findResultViews(anyLong());
         verify(resultRepo, never()).findFailingReveal(anyLong());
+    }
+
+    // ---- rejudge (FR-27) ----
+
+    @Test
+    void rejudge_nonAdmin_403_andNoWork() {
+        assertThatThrownBy(() -> service.rejudge(SUB_ID, owner()))
+                .isInstanceOf(ResponseStatusException.class);
+        verify(subRepo, never()).findById(anyLong());
+        verify(resultRepo, never()).deleteBySubmissionId(anyLong());
+        verify(judgeService, never()).enqueue(anyLong());
+    }
+
+    @Test
+    void rejudge_missingSubmission_404_andNoEnqueue() {
+        when(subRepo.findById(SUB_ID)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.rejudge(SUB_ID, admin()))
+                .isInstanceOf(ResponseStatusException.class);
+        verify(judgeService, never()).enqueue(anyLong());
+    }
+
+    @Test
+    void rejudge_admin_clearsResultsResetsAndReenqueues() {
+        Submission sub = submission(9L, SubmissionStatus.DONE, Verdict.WA);
+        sub.setTimeMs(120);
+        sub.setMemKb(4000);
+        sub.setCompileLog("prev");
+        when(subRepo.findById(SUB_ID)).thenReturn(Optional.of(sub));
+
+        var resp = service.rejudge(SUB_ID, admin());
+
+        assertThat(resp.id()).isEqualTo(SUB_ID);
+        assertThat(resp.status()).isEqualTo(SubmissionStatus.QUEUED);
+        // prior per-testcase rows deleted (unique-constraint + stale reveal), submission reset
+        verify(resultRepo).deleteBySubmissionId(SUB_ID);
+        verify(subRepo).save(sub);
+        assertThat(sub.getStatus()).isEqualTo(SubmissionStatus.QUEUED);
+        assertThat(sub.getVerdict()).isNull();
+        assertThat(sub.getTimeMs()).isNull();
+        assertThat(sub.getMemKb()).isNull();
+        assertThat(sub.getCompileLog()).isNull();
+        // re-handed to the judge AFTER the reset
+        verify(judgeService).enqueue(SUB_ID);
     }
 
     @Test

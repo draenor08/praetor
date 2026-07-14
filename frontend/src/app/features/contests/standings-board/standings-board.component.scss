@@ -1,0 +1,104 @@
+.muted {
+  color: var(--text-muted);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Freeze banner ---- */
+.freeze {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--primary-color);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+/* ---- Board ---- */
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.standings-table th,
+.standings-table td {
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.standings-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.standings-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.col-rank { width: 3rem; text-align: center; }
+.col-num { width: 6rem; text-align: center; }
+.col-prob { width: 5rem; text-align: center; }
+
+.standings-table td.col-rank,
+.standings-table td.col-num,
+.standings-table td.col-prob {
+  text-align: center;
+}
+
+.me-row {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.handle {
+  font-weight: 500;
+}
+
+.you-tag {
+  margin-left: 0.4rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.18);
+  color: var(--primary-color);
+}
+
+/* ---- Per-problem cell ---- */
+.st-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 3rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+
+.st-cell small {
+  font-weight: 500;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.c-solved { color: #58c17a; background: rgba(88, 193, 122, 0.12); }
+.c-fail   { color: #ef5b5b; background: rgba(239, 91, 91, 0.12); }
+.c-frozen { color: var(--primary-color); background: rgba(99, 102, 241, 0.14); }
+.c-none   { color: var(--text-muted); background: transparent; }

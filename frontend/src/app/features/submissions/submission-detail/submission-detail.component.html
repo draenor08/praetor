@@ -6,6 +6,9 @@
     <h1 class="page-title">Submission #{{ s.id }}</h1>
     <span *ngIf="s.verdict" class="verdict verdict-{{ s.verdict }}">{{ s.verdict }}</span>
     <span *ngIf="!s.verdict" class="status-pill">{{ s.status }}</span>
+    <button *ngIf="isAdmin" class="btn-primary rejudge-btn" (click)="rejudge()" [disabled]="rejudging">
+      {{ rejudging ? 'Rejudging…' : 'Rejudge' }}
+    </button>
   </div>
 
   <dl class="meta">
