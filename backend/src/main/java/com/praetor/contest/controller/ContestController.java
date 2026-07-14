@@ -3,7 +3,9 @@ package com.praetor.contest.controller;
 import com.praetor.contest.dto.ContestResponse;
 import com.praetor.contest.dto.CreateContestRequest;
 import com.praetor.contest.dto.RegisterRequest;
+import com.praetor.contest.dto.StandingsResponse;
 import com.praetor.contest.service.ContestService;
+import com.praetor.contest.standings.StandingsService;
 import com.praetor.identity.entity.User;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -21,9 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ContestController {
 
     private final ContestService service;
+    private final StandingsService standingsService;
 
-    public ContestController(ContestService service) {
+    public ContestController(ContestService service, StandingsService standingsService) {
         this.service = service;
+        this.standingsService = standingsService;
     }
 
     /** Create a contest — ADMIN only (gated in-service → 403). */
@@ -45,5 +49,17 @@ public class ContestController {
                                          @AuthenticationPrincipal User user) {
         service.register(id, req, user);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    /**
+     * ICPC standings snapshot. Public (see {@link com.praetor.contest.config.ContestWebSecurityConfig}) —
+     * the JWT is optional there, so {@code user} is null for an anonymous spectator. Role-aware:
+     * ADMIN/PROBLEM_SETTER see through an active freeze (live board); everyone else sees the frozen
+     * board during a freeze window.
+     */
+    @GetMapping("/{id}/standings")
+    public StandingsResponse standings(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        boolean privileged = user != null && !"USER".equals(user.getRole());
+        return standingsService.snapshot(id, privileged);
     }
 }
