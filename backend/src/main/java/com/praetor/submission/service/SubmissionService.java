@@ -95,7 +95,10 @@ public class SubmissionService {
                 && SubmissionStatus.DONE.equals(sub.getStatus())
                 && sub.getVerdict() != null
                 && !Verdict.AC.equals(sub.getVerdict())
-                && !Verdict.CE.equals(sub.getVerdict());
+                && !Verdict.CE.equals(sub.getVerdict())
+                // No reveal for a problem currently in a live contest — else a practice submission
+                // could farm that contest's hidden tests (feat 3d live-contest guard).
+                && !subRepo.existsLiveContestForProblem(sub.getProblemId());
 
         Integer revealOrd = null;
         String revealInput = null;

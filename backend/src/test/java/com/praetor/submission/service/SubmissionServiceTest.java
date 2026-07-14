@@ -169,4 +169,26 @@ class SubmissionServiceTest {
         verify(resultRepo, never()).findResultViews(anyLong());
         verify(resultRepo, never()).findFailingReveal(anyLong());
     }
+
+    @Test
+    void practiceWa_problemInLiveContest_neverReveals() {
+        // Live-contest guard: even a practice WA must not reveal hidden tests for a problem that is
+        // currently used by a live contest.
+        ResultView acView = resultView(1, Verdict.AC);
+        ResultView waView = resultView(2, Verdict.WA);
+        when(subRepo.findById(SUB_ID))
+                .thenReturn(Optional.of(submission(null, SubmissionStatus.DONE, Verdict.WA)));
+        when(resultRepo.findResultViews(SUB_ID)).thenReturn(List.of(acView, waView));
+        when(subRepo.existsLiveContestForProblem(anyLong())).thenReturn(true);
+
+        SubmissionResponse resp = service.get(SUB_ID, owner());
+
+        assertThat(resp.practice()).isTrue();
+        assertThat(resp.results()).allSatisfy(r -> {
+            assertThat(r.input()).isNull();
+            assertThat(r.expected()).isNull();
+            assertThat(r.actualOutput()).isNull();
+        });
+        verify(resultRepo, never()).findFailingReveal(anyLong());
+    }
 }
