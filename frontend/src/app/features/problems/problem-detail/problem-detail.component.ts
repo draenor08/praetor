@@ -68,7 +68,9 @@ export class ProblemDetailComponent implements OnInit, OnDestroy {
     if (ProblemDetailComponent.monacoLoading) {
       return ProblemDetailComponent.monacoLoading;
     }
-    const base = 'assets/monaco/vs';
+    // Absolute (origin-root) path — a relative 'assets/...' would resolve against the current
+    // route (e.g. /problems/<slug>) and hit the SPA fallback (index.html) instead of the script.
+    const base = '/assets/monaco/vs';
     ProblemDetailComponent.monacoLoading = new Promise<any>((resolve, reject) => {
       // Worker runs from a data-URI proxy that pulls monaco's workerMain from assets (offline).
       w.MonacoEnvironment = {
@@ -76,7 +78,7 @@ export class ProblemDetailComponent implements OnInit, OnDestroy {
           'data:text/javascript;charset=utf-8,' +
           encodeURIComponent(
             `self.MonacoEnvironment={baseUrl:'${location.origin}/assets/monaco/'};` +
-              `importScripts('${location.origin}/${base}/base/worker/workerMain.js');`
+              `importScripts('${location.origin}${base}/base/worker/workerMain.js');`
           )
       };
       const loader = document.createElement('script');
