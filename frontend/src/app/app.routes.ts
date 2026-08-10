@@ -11,7 +11,7 @@ import { ContestDetailComponent } from './features/contests/contest-detail/conte
 import { AboutComponent } from './features/about/about.component';
 import { NotFoundComponent } from './features/not-found/not-found.component';
 import { authGuard } from './core/guards/auth.guard';
-
+import { ProfileComponent } from './features/profile/profile.component';
 export const routes: Routes = [
   // Auth pages render outside the shell (no rail/topbar).
   { path: 'login', component: LoginComponent },
@@ -33,7 +33,7 @@ export const routes: Routes = [
       // Standings are per-contest → live inside a contest's detail page.
       { path: 'standings', redirectTo: 'contests', pathMatch: 'full' },
       { path: 'submissions', component: ComingSoonComponent, data: { title: 'Submissions' } },
-      { path: 'profile', component: ComingSoonComponent, data: { title: 'Profile' } },
+      { path: 'profile', component: ProfileComponent },
       { path: 'about', component: AboutComponent },
       { path: '', redirectTo: 'problems', pathMatch: 'full' },
       // Unknown URLs render a real 404 inside the shell (keeps rail + topbar).

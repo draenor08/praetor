@@ -1,0 +1,47 @@
+<div class="profile-page">
+
+  <div *ngIf="loading" class="state-message">
+    Loading profile...
+  </div>
+
+  <div *ngIf="error" class="state-message error">
+    {{ error }}
+  </div>
+
+  <div *ngIf="user && !loading" class="profile-card">
+
+    <div class="profile-header">
+      <div class="avatar">
+        {{ user.username?.charAt(0)?.toUpperCase() }}
+      </div>
+
+      <div>
+        <h1>{{ user.fullName }}</h1>
+        <p>&#64;{{ user.username }}</p>
+      </div>
+    </div>
+
+    <div class="profile-info">
+
+      <div class="info-row">
+        <span class="label">Email</span>
+        <span>{{ user.email }}</span>
+      </div>
+
+      <div class="info-row">
+        <span class="label">Role</span>
+        <span class="role-badge">
+          {{ user.role }}
+        </span>
+      </div>
+
+      <div class="info-row">
+        <span class="label">Joined</span>
+        <span>{{ user.createdAt | date:'mediumDate' }}</span>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
