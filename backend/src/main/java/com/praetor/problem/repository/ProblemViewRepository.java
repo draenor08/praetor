@@ -10,7 +10,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ProblemViewRepository extends JpaRepository<ProblemView, Long> {
 
-    List<ProblemView> findAllByOrderByDifficultyAscTitleAsc();
+    /** Public list: archived problems are retired from it (their detail page still resolves). */
+    List<ProblemView> findAllByArchivedFalseOrderByDifficultyAscTitleAsc();
 
     Optional<ProblemView> findBySlug(String slug);
 }

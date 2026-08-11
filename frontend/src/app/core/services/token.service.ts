@@ -18,9 +18,15 @@ export class TokenService {
     return window.localStorage.getItem(this.TOKEN_KEY);
   }
 
+  /**
+   * Merges into the cached user instead of replacing it. Several endpoints describe the
+   * same user with different subsets of fields (login/register return UserResponse,
+   * /api/users/me adds rating), and a plain replace let the narrower payload drop fields
+   * the shell and the standings self-row read back out of here.
+   */
   public setUser(user: any): void {
-    window.localStorage.removeItem(this.USER_KEY);
-    window.localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    const merged = { ...(this.getUser() ?? {}), ...(user ?? {}) };
+    window.localStorage.setItem(this.USER_KEY, JSON.stringify(merged));
   }
 
   public getUser(): any {

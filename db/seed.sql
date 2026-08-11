@@ -8,11 +8,15 @@
 BEGIN;
 
 -- Users: 1 admin, 1 setter, 2 coders --------------------------------------
+-- Real bcrypt(cost 10) hashes of 'password', generated with the app's own
+-- BCryptPasswordEncoder. The previous values were hand-typed placeholders that no encoder
+-- ever produced, so every seeded account failed login — including setter01, which is the
+-- only account that can author problems.
 INSERT INTO users (full_name, username, email, password, role) VALUES
-  ('Admin User', 'draenor08', 'admin@praetor.local',  '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5Vf9bxQ5jR0jX8mJ0qQ8mJ0qQ8mO', 'ADMIN'),
-  ('Setter User', 'setter01',  'setter@praetor.local', '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5Vf9bxQ5jR0jX8mJ0qQ8mJ0qQ8mO', 'PROBLEM_SETTER'),
-  ('Alice Coder', 'alice',     'alice@praetor.local',  '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5Vf9bxQ5jR0jX8mJ0qQ8mJ0qQ8mO', 'USER'),
-  ('Bob Coder', 'bob',       'bob@praetor.local',    '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5Vf9bxQ5jR0jX8mJ0qQ8mJ0qQ8mO', 'USER');
+  ('Admin User', 'draenor08', 'admin@praetor.local',  '$2a$10$hzSiBJck5JwpT1KZf6p1ZOu6y5azOvxg9DkN6MAm3vZCgpZOu2R6W', 'ADMIN'),
+  ('Setter User', 'setter01',  'setter@praetor.local', '$2a$10$ThvytFJuKV1zPlGHW33RwOMvmTueSQ2aHrRGGMKBOsZRMutu2.G22', 'PROBLEM_SETTER'),
+  ('Alice Coder', 'alice',     'alice@praetor.local',  '$2a$10$B5Snx3okF5ynOo5vII8V0eVGOgDmOvXUv5RMKSv5X7gYYDqkKrwrS', 'USER'),
+  ('Bob Coder', 'bob',       'bob@praetor.local',    '$2a$10$VMY379g6O67Opp7W3A6uOuHePRcUX0N2WH5MHIIFD48ySPrrFUhL6', 'USER');
 
 -- Tags --------------------------------------------------------------------
 INSERT INTO tags (name) VALUES ('math'), ('implementation'), ('greedy'), ('strings');
@@ -92,9 +96,13 @@ INSERT INTO registrations (contest_id, user_id) VALUES
   ((SELECT id FROM contests WHERE title='Praetor Demo Round 1'), (SELECT id FROM users WHERE username='bob'));
 
 -- Seed ratings (TM2 domain, but seeded so leaderboard not empty) -----------
+-- All four seeded accounts, not just the two contestants: registration creates a ratings
+-- row, but seeding never did, so staff accounts showed a default rating with no row behind it.
 INSERT INTO ratings (user_id, value) VALUES
-  ((SELECT id FROM users WHERE username='alice'), 1500),
-  ((SELECT id FROM users WHERE username='bob'),   1500);
+  ((SELECT id FROM users WHERE username='draenor08'), 1500),
+  ((SELECT id FROM users WHERE username='setter01'),  1500),
+  ((SELECT id FROM users WHERE username='alice'),     1500),
+  ((SELECT id FROM users WHERE username='bob'),       1500);
 
 COMMIT;
 

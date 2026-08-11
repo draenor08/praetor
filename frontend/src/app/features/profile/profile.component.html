@@ -13,11 +13,12 @@
     <div class="profile-header">
 
       <div class="avatar">
-        {{ user.handle?.charAt(0)?.toUpperCase() }}
+        {{ user.username?.charAt(0)?.toUpperCase() }}
       </div>
 
       <div>
-        <h1>&#64;{{ user.handle }}</h1>
+        <h1>&#64;{{ user.username }}</h1>
+        <p class="full-name" *ngIf="user.fullName">{{ user.fullName }}</p>
       </div>
 
     </div>

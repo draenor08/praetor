@@ -5,6 +5,7 @@ import com.praetor.problem.dto.BulkTestCaseRequest;
 import com.praetor.problem.dto.TestCaseItem;
 import com.praetor.problem.entity.ProblemView;
 import com.praetor.problem.entity.TestCase;
+import com.praetor.problem.repository.ProblemUsageRepository;
 import com.praetor.problem.repository.ProblemViewRepository;
 import com.praetor.problem.repository.TestCaseRepository;
 import org.junit.jupiter.api.Test;
@@ -30,10 +31,14 @@ class TestCaseServiceTest {
     private final TestCaseRepository testCaseRepository =
             mock(TestCaseRepository.class);
 
+    private final ProblemUsageRepository usageRepository =
+            mock(ProblemUsageRepository.class);
+
     private final TestCaseService service =
             new TestCaseService(
                     problemRepository,
-                    testCaseRepository);
+                    testCaseRepository,
+                    usageRepository);
 
     @Test
     void getTestCasesProblemSetterAllowed() {
@@ -84,6 +89,63 @@ class TestCaseServiceTest {
 
         verify(problemRepository, never())
                 .findBySlug(any());
+    }
+
+    @Test
+    void adminMayReadTestCases() {
+
+        ProblemView problem = problem(10L);
+
+        when(problemRepository.findBySlug("a-plus-b"))
+                .thenReturn(Optional.of(problem));
+
+        when(testCaseRepository
+                .findByProblemIdOrderByOrdAsc(10L))
+                .thenReturn(List.of());
+
+        assertThat(
+                service.getTestCases(
+                        "a-plus-b",
+                        user("ADMIN")))
+                .isEmpty();
+    }
+
+    @Test
+    void testCasesAreFrozenDuringALiveContest() {
+
+        ProblemView problem = problem(10L);
+
+        when(problemRepository.findBySlug("a-plus-b"))
+                .thenReturn(Optional.of(problem));
+
+        when(usageRepository.existsLiveContestForProblem(10L))
+                .thenReturn(true);
+
+        BulkTestCaseRequest request =
+                new BulkTestCaseRequest(
+                        "REPLACE",
+                        List.of(
+                                new TestCaseItem(
+                                        1,
+                                        "HIDDEN",
+                                        "1 1",
+                                        "2",
+                                        0)));
+
+        Throwable t = catchThrowable(() ->
+                service.bulkUpdate(
+                        "a-plus-b",
+                        request,
+                        user("PROBLEM_SETTER")));
+
+        assertStatus(t, HttpStatus.CONFLICT);
+
+        // the crown jewel: no case was deleted or written mid-contest
+        verify(testCaseRepository, never())
+                .deleteByProblemId(any());
+
+        verify(testCaseRepository, never())
+                .saveAll(any());
     }
 
     @Test

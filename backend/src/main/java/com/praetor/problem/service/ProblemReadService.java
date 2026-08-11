@@ -34,7 +34,7 @@ public class ProblemReadService {
 
     @Transactional(readOnly = true)
     public List<ProblemSummary> list() {
-        return problemRepo.findAllByOrderByDifficultyAscTitleAsc().stream()
+        return problemRepo.findAllByArchivedFalseOrderByDifficultyAscTitleAsc().stream()
                 .map(p -> new ProblemSummary(p.getSlug(), p.getTitle(), p.getDifficulty(), p.getJudgeMode()))
                 .toList();
     }
