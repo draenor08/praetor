@@ -281,8 +281,32 @@ Seed loads 4 problems, 1 live contest, 4 users. All four seed accounts log in wi
 `password` (dev only): `draenor08` (ADMIN), `setter01` (PROBLEM_SETTER), `alice` and `bob` (USER).
 Authoring a problem needs `setter01` or `draenor08`.
 
+## End-to-end check
+```bash
+node scripts/e2e.mjs              # needs the stack up; zero dependencies, node's fetch only
+BASE=http://localhost:9090 node scripts/e2e.mjs
+```
+Walks the whole journey against the running stack — author a problem, upload test cases, submit real
+C++ through the Docker sandbox and wait for AC, then the anti-cheat boundaries, the submission
+cooldown, the delete guard, archive, and contest rating. Exits non-zero on the first failure and
+prints the actual response. Safe to re-run: everything it creates is suffixed per run. It leaves one
+archived problem behind on purpose — it has submissions by then, so the delete guard (correctly)
+refuses to remove it.
+
+## Demo walkthrough
+1. Log in as `setter01` → **Manage** in the rail (staff only) → **New problem**.
+2. Fill the form (`FLOAT` asks for a tolerance, `SPECIAL` for checker code — same rules the
+   backend enforces), save, and it lands on the test-case editor.
+3. Add a SAMPLE and a couple of HIDDEN cases → **Save all (replace)**.
+4. Log in as `alice` → **Problems** → open it → submit code → watch the verdict arrive live over
+   the WebSocket, per test case.
+5. A wrong answer on a *practice* submission reveals the first failing case; the same wrong answer
+   inside a live contest reveals nothing.
+6. `POST /api/ratings/apply/{contestId}` as ADMIN rates a finished contest immediately instead of
+   waiting for the 60s scheduler — then **Leaderboard** and **Profile** show ratings and history.
+
 ## Insulation rule (why seed matters)
-Engine reads problems/testcases **straight from the DB** (`ProblemRepository`, `TestCaseRepository`), not through another module's controllers. Broken CRUD → seed still fills the tables → judging + demo survive.
+Engine reads problems/testcases **straight from the DB** (via its own `@Immutable` `JudgeProblem` / `JudgeTestCase` projections), not through another module's controllers. Broken CRUD → seed still fills the tables → judging + demo survive. A module needing another's tables reads them through a projection or native query rather than importing the owning module's entities — see `docs/api-contracts.md` → Integration rules.
 
 ## Team & modules
 | Module | Owner |
