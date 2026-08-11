@@ -34,7 +34,10 @@ management:
 # SANDBOX_MEM_MB to praetor.judge.mem-mb on its own.
 praetor:
   rate-limit:
+    # cooldown between two ACCEPTED submissions by the same user (0 disables)
     submission-seconds: ${SUBMISSION_RATE_LIMIT_SECONDS:10}
+    # how often expired cooldown entries are swept out of memory
+    sweep-ms:           ${SUBMISSION_RATE_LIMIT_SWEEP_MS:300000}
 
   judge:
     image:       ${SANDBOX_IMAGE:praetor-judge:latest}

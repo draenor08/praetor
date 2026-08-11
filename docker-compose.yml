@@ -35,6 +35,9 @@ services:
       SANDBOX_MEM_MB: ${SANDBOX_MEM_MB}
       SANDBOX_PIDS_MAX: ${SANDBOX_PIDS_MAX}
       JUDGE_WORKERS: ${JUDGE_WORKERS}
+      # :-10 so a .env copied before this knob existed still boots — an empty value would
+      # reach Spring as "" and fail to parse (the ${VAR:default} bridge only covers *unset*).
+      SUBMISSION_RATE_LIMIT_SECONDS: ${SUBMISSION_RATE_LIMIT_SECONDS:-10}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     # Sandbox strategy = mount docker.sock; backend launches sibling judge

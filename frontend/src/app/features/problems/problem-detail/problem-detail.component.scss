@@ -186,3 +186,10 @@
 .verdict-RE  { color: #f0763c; background: rgba(240, 118, 60, 0.12); }
 .verdict-CE  { color: #8b97a8; background: rgba(139, 151, 168, 0.12); }
 .verdict-PE  { color: #9aa84a; background: rgba(154, 168, 74, 0.12); }
+
+/* Rate-limit cooldown notice — a wait, not a failure, so it reads amber rather than red. */
+.cooldown-message {
+  margin: 0.6rem 0 0;
+  color: #d9b64a;
+  font-size: 0.9rem;
+}
