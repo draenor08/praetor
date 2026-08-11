@@ -35,6 +35,7 @@ public class UserController {
         return new CurrentUserResponse(
                 user.getId(),
                 user.getUsername(),
+                user.getFullName(),
                 user.getEmail(),
                 user.getRole(),
                 rating);

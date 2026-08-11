@@ -277,8 +277,9 @@ docker compose up --build         # postgres + backend + frontend
 Rebuild the judge image after any change under `judge/`. If the DB schema changes, reset the volume
 once with `docker compose down -v` before the next `up` (ddl-auto=none — it won't self-migrate).
 
-Seed loads 4 problems, 1 live contest, 4 users. **Seed user password hashes are placeholders — the
-seed users can't log in yet; register a fresh account for local dev** (auth landmine, tracked).
+Seed loads 4 problems, 1 live contest, 4 users. All four seed accounts log in with the password
+`password` (dev only): `draenor08` (ADMIN), `setter01` (PROBLEM_SETTER), `alice` and `bob` (USER).
+Authoring a problem needs `setter01` or `draenor08`.
 
 ## Insulation rule (why seed matters)
 Engine reads problems/testcases **straight from the DB** (`ProblemRepository`, `TestCaseRepository`), not through another module's controllers. Broken CRUD → seed still fills the tables → judging + demo survive.

@@ -86,4 +86,26 @@ public class ProblemController {
 
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{slug}/archive")
+    public ProblemResponse archive(
+            @PathVariable String slug,
+            @AuthenticationPrincipal User user) {
+
+        return problemService.setArchived(
+                slug,
+                true,
+                user);
+    }
+
+    @PostMapping("/{slug}/unarchive")
+    public ProblemResponse unarchive(
+            @PathVariable String slug,
+            @AuthenticationPrincipal User user) {
+
+        return problemService.setArchived(
+                slug,
+                false,
+                user);
+    }
 }

@@ -13,5 +13,6 @@ public record ProblemResponse(
         Double floatEps,
         String checkerCode,
         String editorial,
-        Long createdBy) {
+        Long createdBy,
+        boolean archived) {
 }

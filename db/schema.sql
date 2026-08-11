@@ -39,6 +39,10 @@ CREATE TABLE problems (
     checker_code  TEXT,                              -- used when judge_mode='SPECIAL'
     editorial     TEXT,                              -- feat 13, markdown, nullable
     created_by    BIGINT REFERENCES users(id),
+    -- retired from the public list but still referenced by past submissions/standings.
+    -- The escape hatch for problems that can no longer be hard-deleted (see below: the
+    -- submissions/contest_problems FKs are RESTRICT, so a used problem cannot be dropped).
+    archived      BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
@@ -147,6 +151,8 @@ CREATE TABLE ratings (
     user_id BIGINT PRIMARY KEY REFERENCES users(id),
     value   INTEGER NOT NULL DEFAULT 1500
 );
+-- Leaderboard reads the top page by rating; without this it is a full scan + sort.
+CREATE INDEX idx_ratings_value ON ratings(value DESC);
 
 CREATE TABLE rating_history (
     id            BIGSERIAL PRIMARY KEY,
@@ -154,7 +160,10 @@ CREATE TABLE rating_history (
     contest_id    BIGINT NOT NULL REFERENCES contests(id),
     rating_before INTEGER NOT NULL,
     rating_after  INTEGER NOT NULL,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- One rating change per user per contest. The service also checks before applying, but
+    -- that is a read-then-write: this constraint is what makes a double-apply impossible.
+    UNIQUE (user_id, contest_id)
 );
 CREATE INDEX idx_rating_hist_user ON rating_history(user_id, created_at);
 

@@ -3,13 +3,17 @@ package com.praetor.problem.service;
 import com.praetor.identity.entity.User;
 import com.praetor.problem.dto.ProblemRequest;
 import com.praetor.problem.dto.ProblemResponse;
+import com.praetor.problem.dto.ProblemUsageResponse;
 import com.praetor.problem.entity.Problem;
 import com.praetor.problem.repository.ProblemRepository;
+import com.praetor.problem.repository.ProblemUsageRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -19,9 +23,31 @@ public class ProblemService {
             Set.of("EXACT", "TOKEN", "FLOAT", "SPECIAL");
 
     private final ProblemRepository problemRepository;
+    private final ProblemUsageRepository usageRepository;
 
-    public ProblemService(ProblemRepository problemRepository) {
+    public ProblemService(
+            ProblemRepository problemRepository,
+            ProblemUsageRepository usageRepository) {
+
         this.problemRepository = problemRepository;
+        this.usageRepository = usageRepository;
+    }
+
+    /**
+     * Every problem including archived ones, for the setter workspace. The public list
+     * ({@code ProblemReadService.list}) hides archived problems; this one must not, or a
+     * setter could never find one to restore.
+     */
+    @Transactional(readOnly = true)
+    public List<ProblemResponse> listForManagement(User user) {
+
+        ProblemAuthz.requireStaff(user, "manage problems");
+
+        return problemRepository
+                .findAllByOrderByDifficultyAscTitleAsc()
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Transactional
@@ -29,7 +55,7 @@ public class ProblemService {
             ProblemRequest request,
             User user) {
 
-        requireProblemSetter(user);
+        ProblemAuthz.requireStaff(user, "create problems");
         validate(request);
 
         String slug = normalizeSlug(request.slug());
@@ -64,7 +90,7 @@ public class ProblemService {
             ProblemRequest request,
             User user) {
 
-        requireProblemSetter(user);
+        ProblemAuthz.requireStaff(user, "update problems");
         validate(request);
 
         Problem problem =
@@ -77,6 +103,8 @@ public class ProblemService {
 
         String newSlug =
                 normalizeSlug(request.slug());
+
+        requireEditableNow(problem, request, newSlug);
 
         problemRepository
                 .findBySlug(newSlug)
@@ -119,12 +147,21 @@ public class ProblemService {
                 problemRepository.save(problem));
     }
 
+    /**
+     * Hard-deletes a problem, but only while nothing references it.
+     *
+     * <p>{@code test_cases} and {@code problem_tags} cascade, but {@code submissions},
+     * {@code contest_problems} and {@code clarifications} are RESTRICT — so deleting a used
+     * problem would fail in the database and surface as a 500. Worse, if those FKs ever
+     * became cascades it would silently erase standings and rating history. Used problems
+     * are archived instead, which is what the 409 body tells the caller to do.
+     */
     @Transactional
     public void delete(
             String slug,
             User user) {
 
-        requireAdmin(user);
+        ProblemAuthz.requireStaff(user, "delete problems");
 
         Problem problem =
                 problemRepository
@@ -134,7 +171,132 @@ public class ProblemService {
                                         HttpStatus.NOT_FOUND,
                                         "problem not found"));
 
+        String blocker = deleteBlocker(problem.getId());
+
+        if (blocker != null) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    blocker + " — archive it instead of deleting");
+        }
+
         problemRepository.delete(problem);
+    }
+
+    /** Archives (hides from the public list) or restores a problem. */
+    @Transactional
+    public ProblemResponse setArchived(
+            String slug,
+            boolean archived,
+            User user) {
+
+        ProblemAuthz.requireStaff(user, "archive problems");
+
+        Problem problem =
+                problemRepository
+                        .findBySlug(slug)
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "problem not found"));
+
+        problem.setArchived(archived);
+
+        return toResponse(
+                problemRepository.save(problem));
+    }
+
+    /** What references this problem, so the UI can offer Delete or Archive, never a dead 409. */
+    @Transactional(readOnly = true)
+    public ProblemUsageResponse usage(
+            String slug,
+            User user) {
+
+        ProblemAuthz.requireStaff(user, "inspect problems");
+
+        Problem problem =
+                problemRepository
+                        .findBySlug(slug)
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "problem not found"));
+
+        Long id = problem.getId();
+        String blocker = deleteBlocker(id);
+
+        return new ProblemUsageResponse(
+                problem.getSlug(),
+                blocker == null,
+                problem.isArchived(),
+                usageRepository.existsLiveContestForProblem(id),
+                usageRepository.countSubmissions(id),
+                usageRepository.countClarifications(id),
+                usageRepository.findUsingContestTitle(id).orElse(null),
+                blocker);
+    }
+
+    /** Human-readable reason this problem may not be hard-deleted, or null when it may. */
+    private String deleteBlocker(Long problemId) {
+
+        String contestTitle =
+                usageRepository
+                        .findUsingContestTitle(problemId)
+                        .orElse(null);
+
+        if (contestTitle != null) {
+            return "problem is used by contest \"" + contestTitle + "\"";
+        }
+
+        long submissions =
+                usageRepository.countSubmissions(problemId);
+
+        if (submissions > 0) {
+            return "problem has " + submissions + " submission(s)";
+        }
+
+        long clarifications =
+                usageRepository.countClarifications(problemId);
+
+        if (clarifications > 0) {
+            return "problem has " + clarifications + " clarification(s)";
+        }
+
+        return null;
+    }
+
+    /**
+     * Freezes judged semantics while a contest holding this problem is running. Rewriting the
+     * limits, the judge mode or the slug mid-contest would re-define the task under everyone
+     * who already submitted (and break their links); typo fixes to the prose must still be
+     * possible, so title/statement/constraints/editorial stay editable throughout.
+     */
+    private void requireEditableNow(
+            Problem problem,
+            ProblemRequest request,
+            String newSlug) {
+
+        boolean judgingChanged =
+                !Objects.equals(problem.getSlug(), newSlug)
+                        || !Objects.equals(
+                                problem.getTimeLimitMs(),
+                                valueOrDefault(request.timeLimitMs(), 1000))
+                        || !Objects.equals(
+                                problem.getMemLimitKb(),
+                                valueOrDefault(request.memLimitKb(), 262144))
+                        || !Objects.equals(
+                                problem.getJudgeMode(),
+                                normalizeJudgeMode(request.judgeMode()))
+                        || !Objects.equals(problem.getFloatEps(), request.floatEps())
+                        || !Objects.equals(problem.getCheckerCode(), request.checkerCode());
+
+        if (judgingChanged
+                && usageRepository.existsLiveContestForProblem(problem.getId())) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "problem is in a live contest — only title, statement, "
+                            + "constraints and editorial may be edited until it ends");
+        }
     }
 
     private void validate(ProblemRequest request) {
@@ -240,30 +402,6 @@ public class ProblemService {
         }
     }
 
-    private void requireProblemSetter(User user) {
-
-        if (user == null
-                || !"PROBLEM_SETTER".equals(
-                        user.getRole())) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "only PROBLEM_SETTER may create or update problems");
-        }
-    }
-
-    private void requireAdmin(User user) {
-
-        if (user == null
-                || !"ADMIN".equals(
-                        user.getRole())) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "only ADMIN may delete problems");
-        }
-    }
-
     private String normalizeSlug(String slug) {
         return slug.trim().toLowerCase();
     }
@@ -314,6 +452,7 @@ public class ProblemService {
                 problem.getFloatEps(),
                 problem.getCheckerCode(),
                 problem.getEditorial(),
-                problem.getCreatedBy());
+                problem.getCreatedBy(),
+                problem.isArchived());
     }
 }

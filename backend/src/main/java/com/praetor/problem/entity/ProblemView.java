@@ -51,6 +51,9 @@ public class ProblemView {
     @Column(name = "judge_mode")
     private String judgeMode;
 
+    @Column
+    private boolean archived;
+
     protected ProblemView() {
     }
 
@@ -88,5 +91,9 @@ public class ProblemView {
 
     public String getJudgeMode() {
         return judgeMode;
+    }
+
+    public boolean isArchived() {
+        return archived;
     }
 }

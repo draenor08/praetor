@@ -4,6 +4,7 @@ import com.praetor.identity.entity.User;
 import com.praetor.problem.dto.ProblemRequest;
 import com.praetor.problem.entity.Problem;
 import com.praetor.problem.repository.ProblemRepository;
+import com.praetor.problem.repository.ProblemUsageRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,8 +24,13 @@ class ProblemServiceTest {
     private final ProblemRepository problemRepository =
             mock(ProblemRepository.class);
 
+    private final ProblemUsageRepository usageRepository =
+            mock(ProblemUsageRepository.class);
+
     private final ProblemService service =
-            new ProblemService(problemRepository);
+            new ProblemService(
+                    problemRepository,
+                    usageRepository);
 
     @Test
     void problemSetterCanCreateProblem() {
@@ -205,15 +211,54 @@ class ProblemServiceTest {
     }
 
     @Test
-    void problemSetterCannotDeleteProblem() {
+    void adminCanCreateProblem() {
+
+        User admin = user(1L, "ADMIN");
+
+        when(problemRepository.existsBySlug("a-plus-b"))
+                .thenReturn(false);
+
+        when(problemRepository.save(any(Problem.class)))
+                .thenAnswer(invocation ->
+                        invocation.getArgument(0));
+
+        var response =
+                service.create(
+                        validRequest("a-plus-b"),
+                        admin);
+
+        assertThat(response.slug())
+                .isEqualTo("a-plus-b");
+    }
+
+    @Test
+    void problemSetterCanDeleteUnusedProblem() {
 
         User setter =
                 user(5L, "PROBLEM_SETTER");
 
+        Problem problem = problem("remove-me");
+
+        when(problemRepository
+                .findBySlug("remove-me"))
+                .thenReturn(
+                        Optional.of(problem));
+
+        service.delete(
+                "remove-me",
+                setter);
+
+        verify(problemRepository)
+                .delete(problem);
+    }
+
+    @Test
+    void normalUserCannotDeleteProblem() {
+
         Throwable t = catchThrowable(() ->
                 service.delete(
                         "a-plus-b",
-                        setter));
+                        user(5L, "USER")));
 
         assertStatus(
                 t,
@@ -221,6 +266,193 @@ class ProblemServiceTest {
 
         verify(problemRepository, never())
                 .delete(any());
+    }
+
+    @Test
+    void deleteBlockedWhileAContestUsesTheProblem() {
+
+        when(problemRepository
+                .findBySlug("in-contest"))
+                .thenReturn(
+                        Optional.of(problem("in-contest")));
+
+        when(usageRepository.findUsingContestTitle(any()))
+                .thenReturn(
+                        Optional.of("Praetor Demo Round 1"));
+
+        Throwable t = catchThrowable(() ->
+                service.delete(
+                        "in-contest",
+                        user(1L, "ADMIN")));
+
+        assertStatus(t, HttpStatus.CONFLICT);
+
+        assertThat(((ResponseStatusException) t).getReason())
+                .contains("Praetor Demo Round 1")
+                .contains("archive");
+
+        verify(problemRepository, never())
+                .delete(any());
+    }
+
+    @Test
+    void deleteBlockedWhileSubmissionsReferenceTheProblem() {
+
+        when(problemRepository
+                .findBySlug("submitted-to"))
+                .thenReturn(
+                        Optional.of(problem("submitted-to")));
+
+        when(usageRepository.countSubmissions(any()))
+                .thenReturn(47L);
+
+        Throwable t = catchThrowable(() ->
+                service.delete(
+                        "submitted-to",
+                        user(1L, "ADMIN")));
+
+        assertStatus(t, HttpStatus.CONFLICT);
+
+        assertThat(((ResponseStatusException) t).getReason())
+                .contains("47");
+
+        verify(problemRepository, never())
+                .delete(any());
+    }
+
+    @Test
+    void liveContestFreezesJudgingFields() {
+
+        Problem existing = problem("a-plus-b");
+
+        when(problemRepository.findBySlug("a-plus-b"))
+                .thenReturn(Optional.of(existing));
+
+        when(usageRepository.existsLiveContestForProblem(any()))
+                .thenReturn(true);
+
+        // same slug, same everything — except the time limit
+        ProblemRequest request =
+                new ProblemRequest(
+                        "a-plus-b",
+                        "A Plus B",
+                        "Add two numbers.",
+                        "1 <= a,b <= 100",
+                        800,
+                        5000,
+                        262144,
+                        "EXACT",
+                        null,
+                        null,
+                        null);
+
+        Throwable t = catchThrowable(() ->
+                service.update(
+                        "a-plus-b",
+                        request,
+                        user(5L, "PROBLEM_SETTER")));
+
+        assertStatus(t, HttpStatus.CONFLICT);
+
+        verify(problemRepository, never())
+                .save(any());
+    }
+
+    @Test
+    void liveContestStillAllowsStatementEdits() {
+
+        Problem existing = problem("a-plus-b");
+
+        when(problemRepository.findBySlug("a-plus-b"))
+                .thenReturn(Optional.of(existing));
+
+        when(usageRepository.existsLiveContestForProblem(any()))
+                .thenReturn(true);
+
+        when(problemRepository.save(existing))
+                .thenReturn(existing);
+
+        // judging fields untouched; only the prose changes
+        ProblemRequest request =
+                new ProblemRequest(
+                        "a-plus-b",
+                        "A Plus B",
+                        "Add two numbers. Note: they fit in a 64-bit integer.",
+                        "1 <= a,b <= 100",
+                        800,
+                        1000,
+                        262144,
+                        "EXACT",
+                        null,
+                        null,
+                        null);
+
+        var response =
+                service.update(
+                        "a-plus-b",
+                        request,
+                        user(5L, "PROBLEM_SETTER"));
+
+        assertThat(response.statement())
+                .contains("64-bit");
+    }
+
+    @Test
+    void archiveHidesProblemWithoutDeletingIt() {
+
+        Problem problem = problem("retired");
+
+        when(problemRepository.findBySlug("retired"))
+                .thenReturn(Optional.of(problem));
+
+        when(problemRepository.save(problem))
+                .thenReturn(problem);
+
+        var response =
+                service.setArchived(
+                        "retired",
+                        true,
+                        user(5L, "PROBLEM_SETTER"));
+
+        assertThat(response.archived()).isTrue();
+
+        verify(problemRepository, never())
+                .delete(any());
+    }
+
+    @Test
+    void usageReportsWhyDeleteIsBlocked() {
+
+        when(problemRepository.findBySlug("a-plus-b"))
+                .thenReturn(
+                        Optional.of(problem("a-plus-b")));
+
+        when(usageRepository.countSubmissions(any()))
+                .thenReturn(3L);
+
+        when(usageRepository.existsLiveContestForProblem(any()))
+                .thenReturn(true);
+
+        var usage =
+                service.usage(
+                        "a-plus-b",
+                        user(1L, "ADMIN"));
+
+        assertThat(usage.deletable()).isFalse();
+        assertThat(usage.submissions()).isEqualTo(3L);
+        assertThat(usage.inLiveContest()).isTrue();
+        assertThat(usage.reason()).contains("3");
+    }
+
+    @Test
+    void normalUserCannotReadUsage() {
+
+        Throwable t = catchThrowable(() ->
+                service.usage(
+                        "a-plus-b",
+                        user(5L, "USER")));
+
+        assertStatus(t, HttpStatus.FORBIDDEN);
     }
 
     @Test
@@ -304,6 +536,35 @@ class ProblemServiceTest {
                 null,
                 null,
                 null);
+    }
+
+    /** A persisted-looking problem: the id matters because update() compares ids on a slug clash. */
+    private Problem problem(String slug) {
+
+        Problem problem =
+                new Problem(
+                        slug,
+                        "A Plus B",
+                        "Add two numbers.",
+                        "1 <= a,b <= 100",
+                        800,
+                        1000,
+                        262144,
+                        "EXACT",
+                        null,
+                        null,
+                        null,
+                        5L);
+
+        try {
+            var field = Problem.class.getDeclaredField("id");
+            field.setAccessible(true);
+            field.set(problem, 42L);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+
+        return problem;
     }
 
     private User user(

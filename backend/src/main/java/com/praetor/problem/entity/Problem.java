@@ -54,6 +54,10 @@ public class Problem {
     @Column(name = "created_by")
     private Long createdBy;
 
+    /** Retired from the public problem list, but every submission and standing it backs stays intact. */
+    @Column(nullable = false)
+    private boolean archived = false;
+
     @Column(name = "created_at", nullable = false)
     private ZonedDateTime createdAt;
 
@@ -149,6 +153,14 @@ public class Problem {
 
     public ZonedDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public boolean isArchived() {
+        return archived;
+    }
+
+    public void setArchived(boolean archived) {
+        this.archived = archived;
     }
 
     public void setSlug(String slug) {

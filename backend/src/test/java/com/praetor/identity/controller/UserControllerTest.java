@@ -23,6 +23,7 @@ class UserControllerTest {
         User user = new User();
         user.setId(1L);
         user.setUsername("yeasir");
+        user.setFullName("Yeasir Anjir");
         user.setEmail("yeasir@example.com");
         user.setRole("USER");
 
@@ -41,7 +42,9 @@ class UserControllerTest {
                 controller.getCurrentUser(user);
 
         assertEquals(1L, response.id());
-        assertEquals("yeasir", response.handle());
+        // Must match UserResponse.username — the frontend caches both under one key.
+        assertEquals("yeasir", response.username());
+        assertEquals("Yeasir Anjir", response.fullName());
         assertEquals(
                 "yeasir@example.com",
                 response.email());

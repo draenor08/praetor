@@ -6,6 +6,7 @@ import com.praetor.problem.dto.TestCaseItem;
 import com.praetor.problem.dto.TestCaseResponse;
 import com.praetor.problem.entity.ProblemView;
 import com.praetor.problem.entity.TestCase;
+import com.praetor.problem.repository.ProblemUsageRepository;
 import com.praetor.problem.repository.ProblemViewRepository;
 import com.praetor.problem.repository.TestCaseRepository;
 import org.springframework.http.HttpStatus;
@@ -22,13 +23,16 @@ public class TestCaseService {
 
     private final ProblemViewRepository problemRepository;
     private final TestCaseRepository testCaseRepository;
+    private final ProblemUsageRepository usageRepository;
 
     public TestCaseService(
             ProblemViewRepository problemRepository,
-            TestCaseRepository testCaseRepository) {
+            TestCaseRepository testCaseRepository,
+            ProblemUsageRepository usageRepository) {
 
         this.problemRepository = problemRepository;
         this.testCaseRepository = testCaseRepository;
+        this.usageRepository = usageRepository;
     }
 
     @Transactional(readOnly = true)
@@ -36,7 +40,7 @@ public class TestCaseService {
             String slug,
             User user) {
 
-        requireProblemSetter(user);
+        ProblemAuthz.requireStaff(user, "manage test cases");
 
         ProblemView problem = findProblem(slug);
 
@@ -53,9 +57,19 @@ public class TestCaseService {
             BulkTestCaseRequest request,
             User user) {
 
-        requireProblemSetter(user);
+        ProblemAuthz.requireStaff(user, "manage test cases");
 
         ProblemView problem = findProblem(slug);
+
+        // A REPLACE mid-contest silently invalidates every verdict already awarded, and an
+        // APPEND adds a case the earlier submissions were never judged against. Either way the
+        // contest stops being the same contest, so writes are frozen while one is running.
+        if (usageRepository.existsLiveContestForProblem(problem.getId())) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "problem is in a live contest — test cases are frozen until it ends");
+        }
 
         validateRequest(request);
 
@@ -223,19 +237,6 @@ public class TestCaseService {
                         new ResponseStatusException(
                                 HttpStatus.NOT_FOUND,
                                 "problem not found"));
-    }
-
-    private void requireProblemSetter(
-            User user) {
-
-        if (user == null
-                || !"PROBLEM_SETTER".equals(
-                        user.getRole())) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "only PROBLEM_SETTER may manage test cases");
-        }
     }
 
     private TestCaseResponse toResponse(
