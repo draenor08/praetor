@@ -37,15 +37,11 @@ class ContestServiceTest {
     private final RegistrationRepository registrationRepo =
             mock(RegistrationRepository.class);
 
-    private final RatingService ratingService =
-            mock(RatingService.class);
-
     private final ContestService service =
             new ContestService(
                     contestRepo,
                     contestProblemRepo,
-                    registrationRepo,
-                    ratingService);
+                    registrationRepo);
 
     private final ZonedDateTime start =
             ZonedDateTime.now();
@@ -341,29 +337,6 @@ class ContestServiceTest {
                 .save(any());
     }
 
-    @Test
-    void processEndedContestsAppliesOnlyEndedContest() {
-
-        Contest ended = mock(Contest.class);
-        Contest active = mock(Contest.class);
-
-        when(ended.getId()).thenReturn(10L);
-        when(ended.getEndsAt())
-                .thenReturn(ZonedDateTime.now().minusMinutes(5));
-
-        when(active.getId()).thenReturn(20L);
-        when(active.getEndsAt())
-                .thenReturn(ZonedDateTime.now().plusHours(1));
-
-        when(contestRepo.findAll())
-                .thenReturn(List.of(ended, active));
-
-        service.processEndedContests();
-
-        verify(ratingService)
-                .applyContestResults(10L);
-
-        verify(ratingService, never())
-                .applyContestResults(20L);
-    }
+    // Rating a finished contest moved to identity's ContestRatingScheduler — covered by
+    // ContestRatingSchedulerTest. The contest module no longer knows rating exists.
 }

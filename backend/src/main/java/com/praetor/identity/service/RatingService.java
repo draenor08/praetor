@@ -13,9 +13,6 @@ import com.praetor.identity.entity.User;
 import com.praetor.identity.repository.RatingHistoryRepository;
 import com.praetor.identity.repository.RatingRepository;
 import com.praetor.identity.repository.UserRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,44 +91,39 @@ public class RatingService {
                     "size must be between 1 and 100");
         }
 
-        PageRequest pageable = PageRequest.of(
-                page,
-                size,
-                Sort.by(
-                        Sort.Order.desc("value"),
-                        Sort.Order.asc("userId")));
-
-        Page<Rating> ratings =
-                ratingRepository.findAll(pageable);
-
         List<LeaderboardEntry> content =
-                new ArrayList<>();
-
-        for (Rating rating : ratings.getContent()) {
-
-            User user = userRepository
-                    .findById(rating.getUserId())
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.INTERNAL_SERVER_ERROR,
-                            "rating user not found"));
-
-            long rank =
-                    ratingRepository
-                            .countByValueGreaterThan(
-                                    rating.getValue()) + 1;
-
-            content.add(
-                    new LeaderboardEntry(
-                            rank,
-                            user.getUsername(),
-                            rating.getValue()));
-        }
+                ratingRepository
+                        .findLeaderboardPage(size, page * size)
+                        .stream()
+                        .map(row -> new LeaderboardEntry(
+                                row.getRank(),
+                                row.getHandle(),
+                                row.getRating()))
+                        .toList();
 
         return new LeaderboardResponse(
                 content,
-                ratings.getNumber(),
-                ratings.getSize(),
-                ratings.getTotalElements());
+                page,
+                size,
+                ratingRepository.count());
+    }
+
+    /**
+     * ADMIN-triggered rating application, for when waiting out the scheduler's tick is not
+     * acceptable (a live demo, say). Idempotent by the same guard as the scheduled path: a
+     * contest that already has rating history is a no-op, so pressing it twice cannot
+     * double-apply.
+     */
+    @Transactional
+    public void applyContestResults(Long contestId, User user) {
+
+        if (user == null || !"ADMIN".equals(user.getRole())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "only ADMIN may apply contest ratings");
+        }
+
+        applyContestResults(contestId);
     }
 
     @Transactional

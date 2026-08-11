@@ -11,15 +11,18 @@ import com.praetor.identity.repository.RatingRepository;
 import com.praetor.identity.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -121,29 +124,21 @@ class RatingServiceTest {
     @Test
     void leaderboardReturnsUsersInRatingOrder() {
 
-        Rating aliceRating = new Rating(1L, 1800);
-        Rating bobRating = new Rating(2L, 1700);
+        // built before the stub below: row() stubs its own mock, and Mockito refuses a
+        // stubbing that starts while another when(...) is still unfinished
+        var alice = row(1L, "alice", 1800);
+        var bob = row(2L, "bob", 1700);
 
-        when(ratingRepository.findAll(any(Pageable.class)))
-                .thenReturn(new PageImpl<>(
-                        List.of(aliceRating, bobRating)));
+        when(ratingRepository.findLeaderboardPage(20, 0))
+                .thenReturn(List.of(alice, bob));
 
-        when(userRepository.findById(1L))
-                .thenReturn(Optional.of(user(1L, "alice")));
-
-        when(userRepository.findById(2L))
-                .thenReturn(Optional.of(user(2L, "bob")));
-
-        when(ratingRepository.countByValueGreaterThan(1800))
-                .thenReturn(0L);
-
-        when(ratingRepository.countByValueGreaterThan(1700))
-                .thenReturn(1L);
+        when(ratingRepository.count()).thenReturn(2L);
 
         var response =
                 service.getLeaderboard(0, 20);
 
         assertThat(response.content()).hasSize(2);
+        assertThat(response.totalElements()).isEqualTo(2L);
 
         assertThat(response.content().get(0).handle())
                 .isEqualTo("alice");
@@ -159,6 +154,61 @@ class RatingServiceTest {
 
         assertThat(response.content().get(1).rank())
                 .isEqualTo(2);
+    }
+
+    @Test
+    void leaderboardReadsOnePageInOneQuery() {
+
+        var alice = row(1L, "alice", 1800);
+
+        when(ratingRepository.findLeaderboardPage(20, 40))
+                .thenReturn(List.of(alice));
+
+        service.getLeaderboard(2, 20);
+
+        // page 2 → offset 40, and no per-row user/rank lookups (the old shape was 2N+1)
+        verify(ratingRepository).findLeaderboardPage(20, 40);
+        verify(userRepository, never()).findById(any());
+        verify(ratingRepository, never()).countByValueGreaterThan(any());
+    }
+
+    @Test
+    void leaderboardRejectsOutOfRangePaging() {
+
+        assertThat(catchThrowable(() -> service.getLeaderboard(-1, 20)))
+                .isInstanceOf(ResponseStatusException.class);
+
+        assertThat(catchThrowable(() -> service.getLeaderboard(0, 101)))
+                .isInstanceOf(ResponseStatusException.class);
+
+        verify(ratingRepository, never())
+                .findLeaderboardPage(anyInt(), anyInt());
+    }
+
+    @Test
+    void onlyAdminMayApplyContestRatingsManually() {
+
+        User contestant = user(1L, "alice");
+        contestant.setRole("USER");
+
+        Throwable t = catchThrowable(() ->
+                service.applyContestResults(10L, contestant));
+
+        assertThat(t).isInstanceOf(ResponseStatusException.class);
+        assertThat(((ResponseStatusException) t).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+
+        verify(standingsService, never())
+                .snapshot(any(), anyBoolean());
+    }
+
+    private RatingRepository.LeaderboardRow row(long rank, String handle, int rating) {
+        RatingRepository.LeaderboardRow row =
+                mock(RatingRepository.LeaderboardRow.class);
+        when(row.getRank()).thenReturn(rank);
+        when(row.getHandle()).thenReturn(handle);
+        when(row.getRating()).thenReturn(rating);
+        return row;
     }
 
     @Test
