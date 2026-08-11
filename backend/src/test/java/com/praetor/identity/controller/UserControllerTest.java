@@ -1,31 +1,51 @@
 package com.praetor.identity.controller;
 
-import com.praetor.identity.dto.UserResponse;
+import com.praetor.identity.dto.CurrentUserResponse;
+import com.praetor.identity.entity.Rating;
 import com.praetor.identity.entity.User;
+import com.praetor.identity.repository.RatingRepository;
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class UserControllerTest {
 
     @Test
-    void getCurrentUserReturnsAuthenticatedUserProfile() {
+    void getCurrentUserReturnsContractProfile() {
+
+        RatingRepository ratingRepository =
+                mock(RatingRepository.class);
 
         User user = new User();
         user.setId(1L);
-        user.setFullName("Yeasir");
         user.setUsername("yeasir");
         user.setEmail("yeasir@example.com");
         user.setRole("USER");
 
-        UserController controller = new UserController();
+        when(ratingRepository.findById(1L))
+                .thenReturn(
+                        Optional.of(
+                                new Rating(
+                                        1L,
+                                        1675)));
 
-        UserResponse response = controller.getCurrentUser(user);
+        UserController controller =
+                new UserController(
+                        ratingRepository);
 
-        assertEquals(1L, response.getId());
-        assertEquals("Yeasir", response.getFullName());
-        assertEquals("yeasir", response.getUsername());
-        assertEquals("yeasir@example.com", response.getEmail());
-        assertEquals("USER", response.getRole());
+        CurrentUserResponse response =
+                controller.getCurrentUser(user);
+
+        assertEquals(1L, response.id());
+        assertEquals("yeasir", response.handle());
+        assertEquals(
+                "yeasir@example.com",
+                response.email());
+        assertEquals("USER", response.role());
+        assertEquals(1675, response.rating());
     }
 }

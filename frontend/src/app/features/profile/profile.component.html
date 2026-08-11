@@ -11,14 +11,15 @@
   <div *ngIf="user && !loading" class="profile-card">
 
     <div class="profile-header">
+
       <div class="avatar">
-        {{ user.username?.charAt(0)?.toUpperCase() }}
+        {{ user.handle?.charAt(0)?.toUpperCase() }}
       </div>
 
       <div>
-        <h1>{{ user.fullName }}</h1>
-        <p>&#64;{{ user.username }}</p>
+        <h1>&#64;{{ user.handle }}</h1>
       </div>
+
     </div>
 
     <div class="profile-info">
@@ -36,8 +37,8 @@
       </div>
 
       <div class="info-row">
-        <span class="label">Joined</span>
-        <span>{{ user.createdAt | date:'mediumDate' }}</span>
+        <span class="label">Rating</span>
+        <span>{{ user.rating }}</span>
       </div>
 
     </div>
