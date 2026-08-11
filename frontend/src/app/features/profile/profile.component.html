@@ -39,11 +39,58 @@
 
       <div class="info-row">
         <span class="label">Rating</span>
-        <span>{{ user.rating }}</span>
+        <span>
+          {{ rating?.rating ?? user.rating }}
+          <span class="rank" *ngIf="rating">rank #{{ rating.rank }}</span>
+        </span>
       </div>
 
     </div>
+  </div>
 
+  <!-- Rating history. Absent until a contest the user entered has been rated. -->
+  <div *ngIf="user && !loading" class="profile-card rating-card">
+    <h2>Rating history</h2>
+
+    <p *ngIf="rating && rating.history.length === 0" class="muted">
+      No rated contests yet. Ratings are applied once a contest you registered for finishes.
+    </p>
+
+    <!-- Inline SVG: no charting dependency, so nothing is added to the bundle. -->
+    <svg *ngIf="hasChart" class="rating-chart" [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight"
+         role="img" aria-label="Rating over time">
+      <polyline class="chart-line" [attr.points]="chartLine" />
+      <circle *ngFor="let p of chartPoints" class="chart-dot"
+              [attr.cx]="p.x" [attr.cy]="p.y" r="3.5">
+        <title>{{ p.label }}: {{ p.rating }}</title>
+      </circle>
+      <text class="chart-axis" x="4" [attr.y]="14">{{ chartMax }}</text>
+      <text class="chart-axis" x="4" [attr.y]="chartHeight - 4">{{ chartMin }}</text>
+    </svg>
+
+    <table *ngIf="rating && rating.history.length > 0" class="history-table">
+      <thead>
+        <tr>
+          <th>Contest</th>
+          <th class="col-num">Before</th>
+          <th class="col-num">After</th>
+          <th class="col-num">Change</th>
+          <th class="col-when">When</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let h of historyDesc">
+          <td>{{ contestLabel(h.contestId) }}</td>
+          <td class="col-num num">{{ h.before }}</td>
+          <td class="col-num num">{{ h.after }}</td>
+          <td class="col-num num"
+              [class.gain]="delta(h) > 0" [class.loss]="delta(h) < 0">
+            {{ delta(h) > 0 ? '+' : '' }}{{ delta(h) }}
+          </td>
+          <td class="col-when">{{ h.at | date:'medium' }}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
 </div>

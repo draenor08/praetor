@@ -14,6 +14,7 @@ import {
 import { SubmissionCreated, SubmissionResponse, SubmitRequest } from '../models/submission.model';
 import { ContestDetail, ContestSummary } from '../models/contest.model';
 import { Standings } from '../models/standings.model';
+import { Leaderboard, UserRating } from '../models/rating.model';
 
 /**
  * REST client for problems and submissions. Paths are relative ('/api/...'), proxied to the backend
@@ -58,6 +59,16 @@ export class ApiService {
 
   registerForContest(id: number): Observable<void> {
     return this.http.post<void>(`/api/contests/${id}/register`, { virtual: false });
+  }
+
+  // --- Ratings (public reads) ----------------------------------------------
+
+  getLeaderboard(page = 0, size = 20): Observable<Leaderboard> {
+    return this.http.get<Leaderboard>(`/api/leaderboard?page=${page}&size=${size}`);
+  }
+
+  getUserRating(handle: string): Observable<UserRating> {
+    return this.http.get<UserRating>(`/api/users/${handle}/rating`);
   }
 
   // --- Setter workspace (PROBLEM_SETTER / ADMIN) ---------------------------

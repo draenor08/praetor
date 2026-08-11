@@ -1,3 +1,6 @@
+/* Component-scoped. Colours read the shell's tokens rather than hardcoding a palette — the
+   warm values this file used to carry came from the design prototype, not the committed theme. */
+
 .profile-page {
   max-width: 760px;
   margin: 0 auto;
@@ -5,11 +8,15 @@
 }
 
 .profile-card {
-  background: #15171c;
-  border: 1px solid #2b2e36;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 28px;
-  color: #f5f5f5;
+  color: var(--text-color);
+}
+
+.profile-card + .profile-card {
+  margin-top: 20px;
 }
 
 .profile-header {
@@ -17,7 +24,7 @@
   align-items: center;
   gap: 18px;
   padding-bottom: 24px;
-  border-bottom: 1px solid #2b2e36;
+  border-bottom: 1px solid var(--border-color);
 
   h1 {
     margin: 0 0 6px;
@@ -26,7 +33,7 @@
 
   p {
     margin: 0;
-    color: #9498a3;
+    color: var(--text-muted);
   }
 }
 
@@ -34,8 +41,8 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: #d8a84e;
-  color: #111;
+  background: var(--primary-color);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -51,17 +58,27 @@
   display: flex;
   justify-content: space-between;
   padding: 14px 0;
-  border-bottom: 1px solid #252830;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.info-row:last-child {
+  border-bottom: none;
 }
 
 .label {
-  color: #9498a3;
+  color: var(--text-muted);
+}
+
+.rank {
+  margin-left: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
 }
 
 .role-badge {
-  background: rgba(216, 168, 78, 0.15);
-  color: #d8a84e;
-  border: 1px solid rgba(216, 168, 78, 0.35);
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--primary-color);
+  border: 1px solid rgba(99, 102, 241, 0.35);
   padding: 4px 10px;
   border-radius: 20px;
   font-size: 12px;
@@ -70,10 +87,96 @@
 
 .state-message {
   padding: 24px;
-  color: #aaa;
+  color: var(--text-muted);
   text-align: center;
 }
 
 .error {
-  color: #ff6b6b;
+  color: var(--error-color);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+/* --- rating history --- */
+
+.rating-card h2 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+}
+
+.rating-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-bottom: 1.25rem;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--primary-color);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-dot {
+  fill: var(--primary-color);
+  stroke: var(--surface-color);
+  stroke-width: 1.5;
+}
+
+.chart-axis {
+  fill: var(--text-muted);
+  font-size: 11px;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.history-table th,
+.history-table td {
+  text-align: left;
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.history-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.history-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.col-num {
+  width: 5.5rem;
+  text-align: right;
+}
+
+.col-when {
+  width: 11rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.gain {
+  color: var(--success-color);
+  font-weight: 600;
+}
+
+.loss {
+  color: var(--error-color);
+  font-weight: 600;
 }
