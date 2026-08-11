@@ -51,3 +51,8 @@ docs/srs/
 /styles.css
 /*.html
 /*.css
+
+# Stray build logs. `backend/error.txt` (a 118 KB UTF-16 maven dump) was committed once by
+# accident; keep them out rather than relying on nobody running `mvn ... > error.txt` again.
+error.txt
+*.log
