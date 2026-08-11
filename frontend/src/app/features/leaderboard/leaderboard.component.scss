@@ -1,0 +1,95 @@
+/* Component-scoped only. */
+
+.page-title {
+  margin: 0 0 1.5rem;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.lb-table th,
+.lb-table td {
+  text-align: left;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.lb-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lb-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.row-me {
+  background-color: rgba(99, 102, 241, 0.12);
+}
+
+.you {
+  margin-left: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  color: var(--primary-color);
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.col-rank {
+  width: 4.5rem;
+}
+
+.col-rating {
+  width: 7rem;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.pager-info {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.btn-small {
+  background-color: var(--background-color);
+  color: var(--text-soft);
+  border: 1px solid var(--border-color);
+  padding: 0.35rem 0.7rem;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.btn-small:hover:not([disabled]) {
+  border-color: var(--primary-color);
+  color: var(--text-color);
+}
+
+.btn-small[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

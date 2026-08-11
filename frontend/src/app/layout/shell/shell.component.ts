@@ -37,6 +37,7 @@ export class ShellComponent {
     { path: '/contests', label: 'Contests', icon: '☰' },
     { path: '/standings', label: 'Standings', icon: '▤' },
     { path: '/submissions', label: 'Submissions', icon: '⟳' },
+    { path: '/leaderboard', label: 'Leaderboard', icon: '★' },
     { path: '/profile', label: 'Profile', icon: '◈' },
     { path: '/setter/problems', label: 'Manage', icon: '✎', roles: ['PROBLEM_SETTER', 'ADMIN'] },
     { path: '/about', label: 'About', icon: 'ⓘ' }
