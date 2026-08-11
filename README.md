@@ -269,6 +269,8 @@ Baseline auth (register/login/roles/profile) is required but **not** counted. Op
 ## Run
 ```bash
 cp .env.example .env              # host ports, JWT/DB config (git-ignored)
+# JWT_SECRET is REQUIRED and has no default — the backend refuses to start without it:
+sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$(openssl rand -hex 32)|" .env
 docker build -t praetor-judge:latest judge/   # one-time: the sandbox image (not a compose service)
 docker compose up --build         # postgres + backend + frontend
 # schema + seed auto-applied by postgres initdb on the first (empty) volume
@@ -276,6 +278,11 @@ docker compose up --build         # postgres + backend + frontend
 ```
 Rebuild the judge image after any change under `judge/`. If the DB schema changes, reset the volume
 once with `docker compose down -v` before the next `up` (ddl-auto=none — it won't self-migrate).
+
+`JWT_SECRET` must be at least 32 characters (HS256 needs a 256-bit key). Miss it or make it short
+and the backend stops at startup naming the property, rather than failing later on the first login.
+It does not need to match your teammates' — each stack signs and verifies its own tokens. Changing
+it invalidates every issued token, so everyone logs in again.
 
 Seed loads 4 problems, 1 live contest, 4 users. All four seed accounts log in with the password
 `password` (dev only): `draenor08` (ADMIN), `setter01` (PROBLEM_SETTER), `alice` and `bob` (USER).

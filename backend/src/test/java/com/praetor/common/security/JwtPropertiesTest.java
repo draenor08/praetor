@@ -51,11 +51,17 @@ class JwtPropertiesTest {
     }
 
     @Test
-    void rejectsBlankSecret() {
+    void refusesToStartWithNoSecretAndSaysHowToSetOne() {
+        // application.yml bridges JWT_SECRET with an EMPTY default on purpose — there is no usable
+        // fallback, so an unset env var must stop the app here, with actionable guidance.
         runner.withPropertyValues(
                         "praetor.jwt.secret=",
                         "praetor.jwt.expiry-min=120")
-                .run(context -> assertThat(context).hasFailed());
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .hasStackTraceContaining("JWT_SECRET");
+                });
     }
 
     @Test
