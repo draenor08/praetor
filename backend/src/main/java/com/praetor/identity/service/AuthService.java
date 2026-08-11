@@ -5,7 +5,9 @@ import com.praetor.identity.dto.AuthResponse;
 import com.praetor.identity.dto.LoginRequest;
 import com.praetor.identity.dto.RegisterRequest;
 import com.praetor.identity.dto.UserResponse;
+import com.praetor.identity.entity.Rating;
 import com.praetor.identity.entity.User;
+import com.praetor.identity.repository.RatingRepository;
 import com.praetor.identity.repository.UserRepository;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,15 +19,22 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final RatingRepository ratingRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final UserService userService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                       JwtService jwtService, AuthenticationManager authenticationManager,
-                       UserService userService) {
+    public AuthService(
+            UserRepository userRepository,
+            RatingRepository ratingRepository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            AuthenticationManager authenticationManager,
+            UserService userService) {
+
         this.userRepository = userRepository;
+        this.ratingRepository = ratingRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
@@ -34,12 +43,15 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new IllegalArgumentException("Passwords do not match");
         }
+
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException("Username is already taken");
         }
+
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("Email is already in use");
         }
@@ -49,25 +61,35 @@ public class AuthService {
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole("USER"); // Default role
+        user.setRole("USER");
 
         userRepository.save(user);
 
+        ratingRepository.save(
+                new Rating(user.getId(), RatingService.DEFAULT_RATING));
+
         String jwtToken = jwtService.generateToken(user);
-        return new AuthResponse(jwtToken, new UserResponse(user));
+
+        return new AuthResponse(
+                jwtToken,
+                new UserResponse(user));
     }
 
     public AuthResponse login(LoginRequest request) {
-        User user = (User) userService.loadUserByUsername(request.getIdentifier());
+
+        User user = (User) userService
+                .loadUserByUsername(request.getIdentifier());
 
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        user.getUsername(), // use the actual username from the resolved user
-                        request.getPassword()
-                )
-        );
+                        user.getUsername(),
+                        request.getPassword()));
 
-        String jwtToken = jwtService.generateToken(user);
-        return new AuthResponse(jwtToken, new UserResponse(user));
+        String jwtToken =
+                jwtService.generateToken(user);
+
+        return new AuthResponse(
+                jwtToken,
+                new UserResponse(user));
     }
 }
