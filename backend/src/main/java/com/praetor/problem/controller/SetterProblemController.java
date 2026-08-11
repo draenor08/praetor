@@ -1,6 +1,7 @@
 package com.praetor.problem.controller;
 
 import com.praetor.identity.entity.User;
+import com.praetor.problem.dto.ManagedProblemResponse;
 import com.praetor.problem.dto.ProblemResponse;
 import com.praetor.problem.dto.ProblemUsageResponse;
 import com.praetor.problem.service.ProblemService;
@@ -30,10 +31,17 @@ public class SetterProblemController {
         this.problemService = problemService;
     }
 
-    /** Every problem, archived ones included. */
+    /** Every problem, archived ones included, each with the counts that gate its actions. */
     @GetMapping
-    public List<ProblemResponse> list(@AuthenticationPrincipal User user) {
+    public List<ManagedProblemResponse> list(@AuthenticationPrincipal User user) {
         return problemService.listForManagement(user);
+    }
+
+    /** One problem in full — the editor form's load. */
+    @GetMapping("/{slug}")
+    public ProblemResponse get(@PathVariable String slug,
+                               @AuthenticationPrincipal User user) {
+        return problemService.getForManagement(slug, user);
     }
 
     /** Whether this problem can be hard-deleted, and if not, what is holding it. */

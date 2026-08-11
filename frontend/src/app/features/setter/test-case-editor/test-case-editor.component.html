@@ -1,0 +1,148 @@
+<div class="tc-header">
+  <div>
+    <h1 class="page-title">Test cases</h1>
+    <span class="slug">{{ slug }}</span>
+  </div>
+  <div class="header-actions">
+    <a [routerLink]="['/setter/problems', slug, 'edit']" class="btn-small">Edit problem</a>
+    <a routerLink="/setter/problems" class="btn-small">Back to list</a>
+  </div>
+</div>
+
+<p *ngIf="loading" class="muted">Loading…</p>
+<p *ngIf="loadError" class="error-message">{{ loadError }}</p>
+
+<div *ngIf="!loading && !loadError">
+
+  <p *ngIf="frozen" class="freeze-notice">
+    A contest using this problem is running. Test cases are frozen until it ends — changing them
+    now would invalidate verdicts already awarded.
+  </p>
+
+  <p *ngIf="rows.length === 0" class="warn-notice">
+    This problem has no test cases, so nothing can be judged against it yet.
+  </p>
+
+  <p *ngIf="rows.length > 0 && sampleCount === 0" class="warn-notice">
+    No SAMPLE case — the public problem page will show no worked example. Hidden cases are never
+    shown to contestants.
+  </p>
+
+  <p *ngIf="notice" class="notice-message">{{ notice }}</p>
+  <p *ngIf="saveError" class="error-message">{{ saveError }}</p>
+
+  <ul *ngIf="rowErrors.length" class="error-message error-list">
+    <li *ngFor="let e of rowErrors">{{ e }}</li>
+  </ul>
+
+  <table class="tc-table">
+    <thead>
+      <tr>
+        <th class="col-ord">Ord</th>
+        <th class="col-kind">Kind</th>
+        <th>Input</th>
+        <th>Expected output</th>
+        <th class="col-points">Points</th>
+        <th class="col-row-actions"></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of rows; let i = index">
+        <td class="col-ord">
+          <input type="number" min="1" [(ngModel)]="row.ord" [name]="'ord' + i"
+                 [disabled]="frozen">
+        </td>
+        <td class="col-kind">
+          <select [(ngModel)]="row.kind" [name]="'kind' + i" [disabled]="frozen">
+            <option value="SAMPLE">SAMPLE</option>
+            <option value="HIDDEN">HIDDEN</option>
+          </select>
+        </td>
+        <td>
+          <textarea rows="3" class="code" [(ngModel)]="row.input" [name]="'input' + i"
+                    [disabled]="frozen"></textarea>
+        </td>
+        <td>
+          <textarea rows="3" class="code" [(ngModel)]="row.expected" [name]="'expected' + i"
+                    [disabled]="frozen"></textarea>
+        </td>
+        <td class="col-points">
+          <input type="number" min="0" [(ngModel)]="row.points" [name]="'points' + i"
+                 [disabled]="frozen">
+        </td>
+        <td class="col-row-actions">
+          <span class="saved-flag" *ngIf="row.id !== undefined" title="Already saved">saved</span>
+          <span class="new-flag" *ngIf="row.id === undefined" title="Not saved yet">new</span>
+          <button type="button" class="btn-small btn-danger" (click)="removeRow(i)"
+                  [disabled]="frozen">Remove</button>
+        </td>
+      </tr>
+      <tr *ngIf="rows.length === 0">
+        <td colspan="6" class="muted">No cases yet.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="row-tools">
+    <button type="button" class="btn-small" (click)="addRow('SAMPLE')" [disabled]="frozen">
+      + Sample case
+    </button>
+    <button type="button" class="btn-small" (click)="addRow('HIDDEN')" [disabled]="frozen">
+      + Hidden case
+    </button>
+    <button type="button" class="btn-small" (click)="renumber()"
+            [disabled]="frozen || rows.length === 0">
+      Renumber 1…n
+    </button>
+    <button type="button" class="btn-small" (click)="showPaste = !showPaste" [disabled]="frozen">
+      {{ showPaste ? 'Hide paste box' : 'Paste several cases' }}
+    </button>
+  </div>
+
+  <section class="paste-box" *ngIf="showPaste">
+    <p class="hint">
+      Paste cases below. Separate input from expected output with a line of <code>--</code>, and
+      one case from the next with a line of <code>==</code>. They are added as HIDDEN; change the
+      kind afterwards if needed.
+    </p>
+    <textarea rows="10" class="code" [(ngModel)]="pasteText" name="pasteText"
+              placeholder="2 3&#10;--&#10;5&#10;==&#10;100 200&#10;--&#10;300"></textarea>
+    <p *ngIf="pastePreview.error" class="field-error">{{ pastePreview.error }}</p>
+    <p class="hint" *ngIf="!pastePreview.error && pastePreview.count > 0">
+      {{ pastePreview.count }} case(s) parsed.
+    </p>
+    <button type="button" class="btn-small" (click)="appendPasted()"
+            [disabled]="pastePreview.count === 0 || !!pastePreview.error">
+      Add parsed cases to the table
+    </button>
+  </section>
+
+  <div class="save-bar">
+    <!-- Replace is destructive: it deletes every stored case, including ones earlier submissions
+         were judged against. Hence the confirm step. -->
+    <ng-container *ngIf="!confirmingReplace">
+      <button type="button" class="btn-primary" (click)="askReplace()"
+              [disabled]="frozen || saving">
+        {{ saving ? 'Saving…' : 'Save all (replace)' }}
+      </button>
+      <button type="button" class="btn-small" (click)="appendNew()"
+              [disabled]="frozen || saving || newRows.length === 0">
+        Append {{ newRows.length }} new row(s) only
+      </button>
+    </ng-container>
+
+    <ng-container *ngIf="confirmingReplace">
+      <span class="confirm-text">
+        Replace all stored test cases with these {{ rows.length }}? Existing cases are deleted;
+        verdicts already awarded were judged against them.
+      </span>
+      <button type="button" class="btn-primary" (click)="replaceAll()">Yes, replace</button>
+      <button type="button" class="btn-small" (click)="cancelReplace()">Cancel</button>
+    </ng-container>
+  </div>
+
+  <p class="hint">
+    Editing a stored case needs “Save all (replace)” — the API has no per-case update. Use append
+    when you only want to add.
+  </p>
+</div>

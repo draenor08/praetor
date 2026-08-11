@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -445,6 +446,54 @@ class ProblemServiceTest {
     }
 
     @Test
+    void managementListMarksUsedProblemsUndeletable() {
+
+        // built first: row() stubs its own mock, which Mockito rejects inside an open when(...)
+        var free = managedRow("free", 0, 0, 0);
+        var inContest = managedRow("in-contest", 0, 1, 0);
+        var submitted = managedRow("submitted", 5, 0, 0);
+
+        when(usageRepository.findManagementRows())
+                .thenReturn(List.of(free, inContest, submitted));
+
+        var rows = service.listForManagement(user(1L, "ADMIN"));
+
+        assertThat(rows).hasSize(3);
+
+        assertThat(rows.get(0).deletable()).isTrue();
+        assertThat(rows.get(0).lockReason()).isNull();
+
+        assertThat(rows.get(1).deletable()).isFalse();
+        assertThat(rows.get(1).lockReason()).contains("contest");
+
+        assertThat(rows.get(2).deletable()).isFalse();
+        assertThat(rows.get(2).lockReason()).contains("5");
+    }
+
+    @Test
+    void normalUserCannotListForManagement() {
+
+        Throwable t = catchThrowable(() ->
+                service.listForManagement(user(5L, "USER")));
+
+        assertStatus(t, HttpStatus.FORBIDDEN);
+
+        verify(usageRepository, never()).findManagementRows();
+    }
+
+    @Test
+    void managementFetchOfUnknownProblemGets404() {
+
+        when(problemRepository.findBySlug("ghost"))
+                .thenReturn(Optional.empty());
+
+        Throwable t = catchThrowable(() ->
+                service.getForManagement("ghost", user(5L, "PROBLEM_SETTER")));
+
+        assertStatus(t, HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void normalUserCannotReadUsage() {
 
         Throwable t = catchThrowable(() ->
@@ -536,6 +585,23 @@ class ProblemServiceTest {
                 null,
                 null,
                 null);
+    }
+
+    private ProblemUsageRepository.ManagedProblemRow managedRow(
+            String slug, long submissions, long contests, long clarifications) {
+
+        var row = mock(ProblemUsageRepository.ManagedProblemRow.class);
+        when(row.getSlug()).thenReturn(slug);
+        when(row.getTitle()).thenReturn(slug);
+        when(row.getDifficulty()).thenReturn(800);
+        when(row.getJudgeMode()).thenReturn("EXACT");
+        when(row.getArchived()).thenReturn(false);
+        when(row.getTestCases()).thenReturn(3L);
+        when(row.getSubmissions()).thenReturn(submissions);
+        when(row.getContests()).thenReturn(contests);
+        when(row.getClarifications()).thenReturn(clarifications);
+        when(row.getInLiveContest()).thenReturn(false);
+        return row;
     }
 
     /** A persisted-looking problem: the id matters because update() compares ids on a slug clash. */

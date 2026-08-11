@@ -1,6 +1,7 @@
 package com.praetor.problem.service;
 
 import com.praetor.identity.entity.User;
+import com.praetor.problem.dto.ManagedProblemResponse;
 import com.praetor.problem.dto.ProblemRequest;
 import com.praetor.problem.dto.ProblemResponse;
 import com.praetor.problem.dto.ProblemUsageResponse;
@@ -39,15 +40,48 @@ public class ProblemService {
      * setter could never find one to restore.
      */
     @Transactional(readOnly = true)
-    public List<ProblemResponse> listForManagement(User user) {
+    public List<ManagedProblemResponse> listForManagement(User user) {
 
         ProblemAuthz.requireStaff(user, "manage problems");
 
-        return problemRepository
-                .findAllByOrderByDifficultyAscTitleAsc()
+        return usageRepository.findManagementRows()
                 .stream()
-                .map(this::toResponse)
+                .map(row -> {
+                    String lockReason = lockReason(
+                            row.getContests(),
+                            row.getSubmissions(),
+                            row.getClarifications(),
+                            null);
+
+                    return new ManagedProblemResponse(
+                            row.getSlug(),
+                            row.getTitle(),
+                            row.getDifficulty(),
+                            row.getJudgeMode(),
+                            row.getArchived(),
+                            row.getTestCases(),
+                            row.getSubmissions(),
+                            row.getContests(),
+                            row.getInLiveContest(),
+                            lockReason == null,
+                            lockReason);
+                })
                 .toList();
+    }
+
+    /** One problem in full (limits, checker, editorial, archived) — what the editor form loads. */
+    @Transactional(readOnly = true)
+    public ProblemResponse getForManagement(String slug, User user) {
+
+        ProblemAuthz.requireStaff(user, "manage problems");
+
+        return toResponse(
+                problemRepository
+                        .findBySlug(slug)
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "problem not found")));
     }
 
     @Transactional
@@ -244,18 +278,39 @@ public class ProblemService {
                         .orElse(null);
 
         if (contestTitle != null) {
-            return "problem is used by contest \"" + contestTitle + "\"";
+            return lockReason(1, 0, 0, contestTitle);
         }
 
         long submissions =
                 usageRepository.countSubmissions(problemId);
 
         if (submissions > 0) {
-            return "problem has " + submissions + " submission(s)";
+            return lockReason(0, submissions, 0, null);
         }
 
-        long clarifications =
-                usageRepository.countClarifications(problemId);
+        return lockReason(
+                0,
+                0,
+                usageRepository.countClarifications(problemId),
+                null);
+    }
+
+    /**
+     * The one place the "why can't this be deleted" wording lives, shared by the delete guard and
+     * the workspace list so the button text and the endpoint can never disagree.
+     */
+    private String lockReason(long contests, long submissions, long clarifications,
+                              String contestTitle) {
+
+        if (contests > 0) {
+            return contestTitle == null
+                    ? "problem is used by a contest"
+                    : "problem is used by contest \"" + contestTitle + "\"";
+        }
+
+        if (submissions > 0) {
+            return "problem has " + submissions + " submission(s)";
+        }
 
         if (clarifications > 0) {
             return "problem has " + clarifications + " clarification(s)";
