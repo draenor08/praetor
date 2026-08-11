@@ -2,10 +2,13 @@ package com.praetor.submission.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.praetor.identity.entity.User;
@@ -13,7 +16,9 @@ import com.praetor.identity.repository.UserRepository;
 import com.praetor.submission.SubmissionStatus;
 import com.praetor.submission.Verdict;
 import com.praetor.submission.dto.SubmissionResponse;
+import com.praetor.submission.dto.SubmitRequest;
 import com.praetor.submission.engine.JudgeService;
+import com.praetor.submission.entity.JudgeProblem;
 import com.praetor.submission.entity.Submission;
 import com.praetor.submission.repository.JudgeProblemRepository;
 import com.praetor.submission.repository.ResultView;
@@ -42,9 +47,11 @@ class SubmissionServiceTest {
     // A no-op mock manager is enough — TransactionTemplate still runs the callback (getTransaction
     // returns a null status, commit is a no-op), which is all the rejudge tests need.
     private final PlatformTransactionManager txManager = mock(PlatformTransactionManager.class);
+    private final SubmissionRateLimiter rateLimiter = mock(SubmissionRateLimiter.class);
 
     private final SubmissionService service =
-            new SubmissionService(subRepo, resultRepo, problemRepo, userRepo, judgeService, txManager);
+            new SubmissionService(subRepo, resultRepo, problemRepo, userRepo, judgeService,
+                    rateLimiter, txManager);
 
     private static final long SUB_ID = 42L;
     private static final long OWNER_ID = 7L;
@@ -179,6 +186,48 @@ class SubmissionServiceTest {
                 .isInstanceOf(ResponseStatusException.class);
         verify(resultRepo, never()).findResultViews(anyLong());
         verify(resultRepo, never()).findFailingReveal(anyLong());
+    }
+
+    // ---- rate limit (FR-17) ----
+
+    @Test
+    void create_unsupportedLanguage_doesNotSpendTheCooldown() {
+        assertThatThrownBy(() -> service.create(
+                new SubmitRequest("a-plus-b", null, "COBOL", "x"), owner()))
+                .isInstanceOf(ResponseStatusException.class);
+
+        verifyNoInteractions(rateLimiter);
+        verify(subRepo, never()).save(any());
+    }
+
+    @Test
+    void create_unknownProblem_doesNotSpendTheCooldown() {
+        when(problemRepo.findBySlug("no-such")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.create(
+                new SubmitRequest("no-such", null, "CPP", "x"), owner()))
+                .isInstanceOf(ResponseStatusException.class);
+
+        // the whole point of moving this out of the filter: a 404 must cost the user nothing
+        verifyNoInteractions(rateLimiter);
+        verify(subRepo, never()).save(any());
+    }
+
+    @Test
+    void create_rateLimited_neverReachesTheJudge() {
+        JudgeProblem problem = mock(JudgeProblem.class);
+        when(problem.getId()).thenReturn(7L);
+        when(problemRepo.findBySlug("a-plus-b")).thenReturn(Optional.of(problem));
+
+        doThrow(new SubmissionRateLimitedException(6))
+                .when(rateLimiter).recordOrReject(OWNER_ID);
+
+        assertThatThrownBy(() -> service.create(
+                new SubmitRequest("a-plus-b", null, "CPP", "int main(){}"), owner()))
+                .isInstanceOf(SubmissionRateLimitedException.class);
+
+        verify(subRepo, never()).save(any());
+        verify(judgeService, never()).enqueue(anyLong());
     }
 
     // ---- rejudge (FR-27) ----

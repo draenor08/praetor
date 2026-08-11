@@ -46,12 +46,17 @@
         </select>
       </label>
       <button type="button" class="btn-primary" (click)="submit()"
-              [disabled]="submitting || !sourceCode.trim()">
-        {{ submitting ? 'Judging…' : 'Submit' }}
+              [disabled]="submitting || cooldownSeconds > 0 || !sourceCode.trim()">
+        {{ submitting ? 'Judging…' : (cooldownSeconds > 0 ? 'Wait ' + cooldownSeconds + 's' : 'Submit') }}
       </button>
     </div>
 
     <div #editorHost class="code-editor" aria-label="C++ code editor"></div>
+
+    <!-- Rate-limit cooldown: counts itself down and re-enables Submit at zero. -->
+    <p *ngIf="cooldownSeconds > 0" class="cooldown-message">
+      Slow down — you can submit again in {{ cooldownSeconds }}s.
+    </p>
 
     <p *ngIf="submitError" class="error-message">{{ submitError }}</p>
 

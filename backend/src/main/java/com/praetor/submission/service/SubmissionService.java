@@ -32,16 +32,19 @@ public class SubmissionService {
     private final JudgeProblemRepository problemRepo;
     private final UserRepository userRepo;
     private final JudgeService judgeService;
+    private final SubmissionRateLimiter rateLimiter;
     private final TransactionTemplate tx;
 
     public SubmissionService(SubmissionRepository subRepo, SubmissionResultRepository resultRepo,
                              JudgeProblemRepository problemRepo, UserRepository userRepo,
-                             JudgeService judgeService, PlatformTransactionManager txManager) {
+                             JudgeService judgeService, SubmissionRateLimiter rateLimiter,
+                             PlatformTransactionManager txManager) {
         this.subRepo = subRepo;
         this.resultRepo = resultRepo;
         this.problemRepo = problemRepo;
         this.userRepo = userRepo;
         this.judgeService = judgeService;
+        this.rateLimiter = rateLimiter;
         this.tx = new TransactionTemplate(txManager);
     }
 
@@ -59,6 +62,10 @@ public class SubmissionService {
         JudgeProblem problem = problemRepo.findBySlug(req.problemSlug())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "problem not found: " + req.problemSlug()));
+
+        // Last, deliberately: the cooldown is spent by submissions the judge will actually run,
+        // so a bad language or a mistyped slug costs the user nothing.
+        rateLimiter.recordOrReject(user.getId());
 
         Submission sub = new Submission();
         sub.setUserId(user.getId());

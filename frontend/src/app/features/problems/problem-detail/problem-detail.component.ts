@@ -49,6 +49,10 @@ export class ProblemDetailComponent implements OnInit, OnDestroy {
   liveStatus = '';
   liveVerdict: string | null = null;
 
+  // Rate-limit cooldown: seconds left before the server will accept another submission.
+  cooldownSeconds = 0;
+  private cooldownTimer?: ReturnType<typeof setInterval>;
+
   private liveSub?: Subscription;
 
   ngOnInit(): void {
@@ -133,6 +137,7 @@ export class ProblemDetailComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.liveSub?.unsubscribe();
     this.editor?.dispose();
+    this.clearCooldown();
   }
 
   get done(): boolean {
@@ -168,8 +173,42 @@ export class ProblemDetailComponent implements OnInit, OnDestroy {
         error: (err) => {
           this.submitting = false;
           this.setEditorReadOnly(false);
+          if (err?.status === 429) {
+            this.startCooldown(err);
+            return;
+          }
           this.submitError = err?.error?.error ?? err?.error?.message ?? 'Submission failed.';
         }
       });
+  }
+
+  /**
+   * 429 = the per-user submission cooldown. Rather than a dead error line, count the wait down
+   * and keep Submit disabled until it reaches zero, so the button state always matches what the
+   * server would actually accept.
+   */
+  private startCooldown(err: any): void {
+    const fromBody = Number(err?.error?.retryAfterSec);
+    const fromHeader = Number(err?.headers?.get?.('Retry-After'));
+    const seconds = [fromBody, fromHeader].find((n) => Number.isFinite(n) && n > 0) ?? 10;
+
+    this.clearCooldown();
+    this.cooldownSeconds = Math.ceil(seconds);
+    this.cooldownTimer = setInterval(() => {
+      this.zone.run(() => {
+        this.cooldownSeconds -= 1;
+        if (this.cooldownSeconds <= 0) {
+          this.clearCooldown();
+        }
+      });
+    }, 1000);
+  }
+
+  private clearCooldown(): void {
+    if (this.cooldownTimer !== undefined) {
+      clearInterval(this.cooldownTimer);
+      this.cooldownTimer = undefined;
+    }
+    this.cooldownSeconds = 0;
   }
 }
