@@ -33,6 +33,14 @@ management:
 # NOTE: the ${ENV:default} bridge is required — Spring relaxed binding does NOT map
 # SANDBOX_MEM_MB to praetor.judge.mem-mb on its own.
 praetor:
+  # JWT signing. docker-compose passes JWT_SECRET/JWT_EXPIRY_MIN from .env; before this block
+  # existed the secret was hardcoded in JwtService and both env vars were silently ignored.
+  # The fallback below is a DEV placeholder so a bare `mvn spring-boot:run` still boots — any
+  # real deployment must set JWT_SECRET (>= 32 chars, else the app fails fast at startup).
+  jwt:
+    secret:     ${JWT_SECRET:praetor-dev-only-secret-change-me-in-env}
+    expiry-min: ${JWT_EXPIRY_MIN:120}
+
   rate-limit:
     # cooldown between two ACCEPTED submissions by the same user (0 disables)
     submission-seconds: ${SUBMISSION_RATE_LIMIT_SECONDS:10}
