@@ -35,10 +35,14 @@ management:
 praetor:
   # JWT signing. docker-compose passes JWT_SECRET/JWT_EXPIRY_MIN from .env; before this block
   # existed the secret was hardcoded in JwtService and both env vars were silently ignored.
-  # The fallback below is a DEV placeholder so a bare `mvn spring-boot:run` still boots — any
-  # real deployment must set JWT_SECRET (>= 32 chars, else the app fails fast at startup).
+  #
+  # There is deliberately NO usable default for the secret: a committed fallback is how a
+  # deployment ends up signing tokens with a key that is public in git history. The empty
+  # `:` default exists only so the failure surfaces as Spring Boot's property report (naming
+  # the field and what to do) instead of a raw unresolved-placeholder stack trace.
+  # Generate one with: openssl rand -hex 32
   jwt:
-    secret:     ${JWT_SECRET:praetor-dev-only-secret-change-me-in-env}
+    secret:     ${JWT_SECRET:}
     expiry-min: ${JWT_EXPIRY_MIN:120}
 
   rate-limit:
