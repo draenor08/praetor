@@ -1,0 +1,246 @@
+package com.praetor.identity.service;
+
+import com.praetor.contest.dto.StandingsResponse;
+import com.praetor.contest.dto.StandingsRow;
+import com.praetor.contest.standings.StandingsService;
+import com.praetor.identity.dto.LeaderboardEntry;
+import com.praetor.identity.dto.LeaderboardResponse;
+import com.praetor.identity.dto.RatingHistoryResponse;
+import com.praetor.identity.dto.RatingResponse;
+import com.praetor.identity.entity.Rating;
+import com.praetor.identity.entity.RatingHistory;
+import com.praetor.identity.entity.User;
+import com.praetor.identity.repository.RatingHistoryRepository;
+import com.praetor.identity.repository.RatingRepository;
+import com.praetor.identity.repository.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+public class RatingService {
+
+    public static final int DEFAULT_RATING = 1500;
+
+    private final RatingRepository ratingRepository;
+    private final RatingHistoryRepository ratingHistoryRepository;
+    private final UserRepository userRepository;
+    private final StandingsService standingsService;
+    private final EloCalculator eloCalculator;
+
+    public RatingService(
+            RatingRepository ratingRepository,
+            RatingHistoryRepository ratingHistoryRepository,
+            UserRepository userRepository,
+            StandingsService standingsService,
+            EloCalculator eloCalculator) {
+
+        this.ratingRepository = ratingRepository;
+        this.ratingHistoryRepository = ratingHistoryRepository;
+        this.userRepository = userRepository;
+        this.standingsService = standingsService;
+        this.eloCalculator = eloCalculator;
+    }
+
+    @Transactional(readOnly = true)
+    public RatingResponse getUserRating(String handle) {
+
+        User user = userRepository.findByUsername(handle)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "user not found"));
+
+        int rating = ratingRepository.findById(user.getId())
+                .map(Rating::getValue)
+                .orElse(DEFAULT_RATING);
+
+        long rank =
+                ratingRepository.countByValueGreaterThan(rating) + 1;
+
+        List<RatingHistoryResponse> history =
+                ratingHistoryRepository
+                        .findByUserIdOrderByCreatedAtAsc(user.getId())
+                        .stream()
+                        .map(this::toHistoryResponse)
+                        .toList();
+
+        return new RatingResponse(
+                rating,
+                rank,
+                history);
+    }
+
+    @Transactional(readOnly = true)
+    public LeaderboardResponse getLeaderboard(
+            int page,
+            int size) {
+
+        if (page < 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "page must be >= 0");
+        }
+
+        if (size < 1 || size > 100) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "size must be between 1 and 100");
+        }
+
+        PageRequest pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(
+                        Sort.Order.desc("value"),
+                        Sort.Order.asc("userId")));
+
+        Page<Rating> ratings =
+                ratingRepository.findAll(pageable);
+
+        List<LeaderboardEntry> content =
+                new ArrayList<>();
+
+        for (Rating rating : ratings.getContent()) {
+
+            User user = userRepository
+                    .findById(rating.getUserId())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.INTERNAL_SERVER_ERROR,
+                            "rating user not found"));
+
+            long rank =
+                    ratingRepository
+                            .countByValueGreaterThan(
+                                    rating.getValue()) + 1;
+
+            content.add(
+                    new LeaderboardEntry(
+                            rank,
+                            user.getUsername(),
+                            rating.getValue()));
+        }
+
+        return new LeaderboardResponse(
+                content,
+                ratings.getNumber(),
+                ratings.getSize(),
+                ratings.getTotalElements());
+    }
+
+    @Transactional
+    public void applyContestResults(Long contestId) {
+
+        if (ratingHistoryRepository.existsByContestId(contestId)) {
+            return;
+        }
+
+        StandingsResponse standings =
+                standingsService.snapshot(contestId, true);
+
+        List<ParticipantRating> participants =
+                new ArrayList<>();
+
+        for (StandingsRow row : standings.rows()) {
+
+            User user = userRepository
+                    .findByUsername(row.handle())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.INTERNAL_SERVER_ERROR,
+                            "standings user not found"));
+
+            Rating rating = ratingRepository
+                    .findById(user.getId())
+                    .orElseGet(() ->
+                            new Rating(
+                                    user.getId(),
+                                    DEFAULT_RATING));
+
+            participants.add(
+                    new ParticipantRating(
+                            user,
+                            rating,
+                            rating.getValue(),
+                            row.rank()));
+        }
+
+        List<RatingChange> changes =
+                new ArrayList<>();
+
+        for (ParticipantRating participant : participants) {
+
+            List<EloCalculator.Opponent> opponents =
+                    participants.stream()
+                            .filter(other ->
+                                    !other.user().getId()
+                                            .equals(participant.user().getId()))
+                            .map(other ->
+                                    new EloCalculator.Opponent(
+                                            other.before(),
+                                            other.rank()))
+                            .toList();
+
+            int delta = eloCalculator.calculateDelta(
+                    participant.before(),
+                    participant.rank(),
+                    opponents);
+
+            int after =
+                    participant.before() + delta;
+
+            changes.add(
+                    new RatingChange(
+                            participant,
+                            after));
+        }
+
+        for (RatingChange change : changes) {
+
+            ParticipantRating participant =
+                    change.participant();
+
+            participant.rating()
+                    .setValue(change.after());
+
+            ratingRepository.save(
+                    participant.rating());
+
+            ratingHistoryRepository.save(
+                    new RatingHistory(
+                            participant.user().getId(),
+                            contestId,
+                            participant.before(),
+                            change.after()));
+        }
+    }
+
+    private RatingHistoryResponse toHistoryResponse(
+            RatingHistory history) {
+
+        return new RatingHistoryResponse(
+                history.getContestId(),
+                history.getRatingBefore(),
+                history.getRatingAfter(),
+                history.getCreatedAt()
+                        .toInstant()
+                        .toString());
+    }
+
+    private record ParticipantRating(
+            User user,
+            Rating rating,
+            int before,
+            int rank) {
+    }
+
+    private record RatingChange(
+            ParticipantRating participant,
+            int after) {
+    }
+}

@@ -49,10 +49,11 @@ export class AuthService {
   }
 
   getMe(): Observable<any> {
-    return this.http.get(AUTH_API + 'me').pipe(
-      tap((user: any) => {
-        this.tokenService.setUser(user);
+  return this.http.get('/api/users/me').pipe(
+    tap((user: any) => {
+      this.tokenService.setUser(user);
       })
     );
   }
 }
+

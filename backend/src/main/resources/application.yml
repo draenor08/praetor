@@ -33,6 +33,9 @@ management:
 # NOTE: the ${ENV:default} bridge is required — Spring relaxed binding does NOT map
 # SANDBOX_MEM_MB to praetor.judge.mem-mb on its own.
 praetor:
+  rate-limit:
+    submission-seconds: ${SUBMISSION_RATE_LIMIT_SECONDS:10}
+
   judge:
     image:       ${SANDBOX_IMAGE:praetor-judge:latest}
     cpu-seconds: ${SANDBOX_CPU_SECONDS:2}
