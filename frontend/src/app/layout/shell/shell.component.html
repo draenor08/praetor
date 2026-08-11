@@ -2,7 +2,7 @@
   <aside class="rail">
     <a routerLink="/problems" class="rail-brand">Praetor</a>
     <nav class="rail-nav">
-      <a *ngFor="let link of links"
+      <a *ngFor="let link of visibleLinks"
          [routerLink]="link.path"
          routerLinkActive="active"
          class="rail-link">

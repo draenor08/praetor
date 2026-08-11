@@ -1,6 +1,7 @@
 package com.praetor.problem.repository;
 
 import com.praetor.problem.entity.Problem;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
@@ -49,4 +50,54 @@ public interface ProblemUsageRepository extends Repository<Problem, Long> {
                 AND now() BETWEEN c.starts_at AND c.ends_at)
             """, nativeQuery = true)
     boolean existsLiveContestForProblem(@Param("problemId") Long problemId);
+
+    /**
+     * The whole setter workspace list — every problem plus the counts that decide what the UI may
+     * offer for it — in one statement.
+     *
+     * <p>Correlated subqueries rather than a per-row round trip: the workspace needs four facts
+     * about each problem, and asking for them one problem at a time is the 2N+1 shape this codebase
+     * has already been bitten by once. Archived problems sort last so the live set reads first.
+     */
+    @Query(value = """
+            SELECT p.slug                AS slug,
+                   p.title               AS title,
+                   p.difficulty          AS difficulty,
+                   p.judge_mode          AS judgeMode,
+                   p.archived            AS archived,
+                   (SELECT count(*) FROM test_cases t WHERE t.problem_id = p.id)     AS testCases,
+                   (SELECT count(*) FROM submissions s WHERE s.problem_id = p.id)    AS submissions,
+                   (SELECT count(*) FROM contest_problems cp WHERE cp.problem_id = p.id) AS contests,
+                   (SELECT count(*) FROM clarifications cl WHERE cl.problem_id = p.id)   AS clarifications,
+                   EXISTS (SELECT 1 FROM contest_problems cp
+                           JOIN contests c ON c.id = cp.contest_id
+                           WHERE cp.problem_id = p.id
+                             AND now() BETWEEN c.starts_at AND c.ends_at)             AS inLiveContest
+            FROM problems p
+            ORDER BY p.archived, p.difficulty, p.title
+            """, nativeQuery = true)
+    List<ManagedProblemRow> findManagementRows();
+
+    /** Projection for {@link #findManagementRows}; mapped from the query's aliases. */
+    interface ManagedProblemRow {
+        String getSlug();
+
+        String getTitle();
+
+        int getDifficulty();
+
+        String getJudgeMode();
+
+        boolean getArchived();
+
+        long getTestCases();
+
+        long getSubmissions();
+
+        long getContests();
+
+        long getClarifications();
+
+        boolean getInLiveContest();
+    }
 }

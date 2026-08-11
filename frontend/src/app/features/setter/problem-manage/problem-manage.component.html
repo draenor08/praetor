@@ -1,0 +1,72 @@
+<div class="manage-header">
+  <h1 class="page-title">Manage problems</h1>
+  <a routerLink="/setter/problems/new" class="btn-primary">New problem</a>
+</div>
+
+<p *ngIf="loading" class="muted">Loading…</p>
+<p *ngIf="error" class="error-message">{{ error }}</p>
+<p *ngIf="notice" class="notice-message">{{ notice }}</p>
+
+<table *ngIf="!loading" class="manage-table">
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th class="col-num">Diff</th>
+      <th class="col-mode">Judge</th>
+      <th class="col-num">Tests</th>
+      <th class="col-num">Subs</th>
+      <th>State</th>
+      <th class="col-actions">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let p of problems" [class.row-archived]="p.archived">
+      <td>
+        <a [routerLink]="['/setter/problems', p.slug, 'edit']">{{ p.title }}</a>
+        <span class="slug">{{ p.slug }}</span>
+      </td>
+      <td class="col-num num">{{ p.difficulty }}</td>
+      <td class="col-mode"><span class="tag">{{ p.judgeMode }}</span></td>
+      <td class="col-num num">
+        <!-- A problem with no test cases cannot be judged at all — worth shouting about. -->
+        <span [class.zero-tests]="p.testCases === 0">{{ p.testCases }}</span>
+      </td>
+      <td class="col-num num">{{ p.submissions }}</td>
+      <td>
+        <span *ngIf="p.inLiveContest" class="badge badge-live" title="Test cases and limits are frozen while a contest runs">Live contest</span>
+        <span *ngIf="p.archived" class="badge badge-archived">Archived</span>
+        <span *ngIf="!p.inLiveContest && !p.archived" class="muted">—</span>
+      </td>
+      <td class="col-actions">
+        <div class="actions" *ngIf="pendingDelete !== p.slug">
+          <a [routerLink]="['/setter/problems', p.slug, 'edit']" class="btn-small">Edit</a>
+          <a [routerLink]="['/setter/problems', p.slug, 'testcases']" class="btn-small">Tests</a>
+          <button type="button" class="btn-small" [disabled]="busySlug === p.slug"
+                  (click)="toggleArchived(p)">
+            {{ p.archived ? 'Restore' : 'Archive' }}
+          </button>
+          <!-- Delete only when the backend says nothing references it; otherwise say why. -->
+          <button *ngIf="p.deletable" type="button" class="btn-small btn-danger"
+                  [disabled]="busySlug === p.slug" (click)="askDelete(p.slug)">
+            Delete
+          </button>
+          <span *ngIf="!p.deletable" class="lock-reason" [title]="p.lockReason || ''">
+            Can't delete: {{ p.lockReason }}
+          </span>
+        </div>
+
+        <div class="actions confirm" *ngIf="pendingDelete === p.slug">
+          <span class="confirm-text">Delete {{ p.slug }} and its test cases?</span>
+          <button type="button" class="btn-small btn-danger" [disabled]="busySlug === p.slug"
+                  (click)="confirmDelete(p.slug)">
+            {{ busySlug === p.slug ? 'Deleting…' : 'Yes, delete' }}
+          </button>
+          <button type="button" class="btn-small" (click)="cancelDelete()">Cancel</button>
+        </div>
+      </td>
+    </tr>
+    <tr *ngIf="problems.length === 0">
+      <td colspan="7" class="muted">No problems yet — create the first one.</td>
+    </tr>
+  </tbody>
+</table>

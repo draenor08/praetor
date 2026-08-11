@@ -11,7 +11,15 @@ import { ContestDetailComponent } from './features/contests/contest-detail/conte
 import { AboutComponent } from './features/about/about.component';
 import { NotFoundComponent } from './features/not-found/not-found.component';
 import { authGuard } from './core/guards/auth.guard';
+import { roleGuard } from './core/guards/role.guard';
 import { ProfileComponent } from './features/profile/profile.component';
+import { ProblemManageComponent } from './features/setter/problem-manage/problem-manage.component';
+import { ProblemEditorComponent } from './features/setter/problem-editor/problem-editor.component';
+import { TestCaseEditorComponent } from './features/setter/test-case-editor/test-case-editor.component';
+
+/** Problem authoring is staff work — the backend allows exactly these two roles. */
+const STAFF_ROLES = ['PROBLEM_SETTER', 'ADMIN'];
+
 export const routes: Routes = [
   // Auth pages render outside the shell (no rail/topbar).
   { path: 'login', component: LoginComponent },
@@ -34,6 +42,34 @@ export const routes: Routes = [
       { path: 'standings', redirectTo: 'contests', pathMatch: 'full' },
       { path: 'submissions', component: ComingSoonComponent, data: { title: 'Submissions' } },
       { path: 'profile', component: ProfileComponent },
+
+      // Setter workspace. roleGuard keeps contestants out of the UI; every endpoint behind it
+      // re-checks the role server-side, so the guard is convenience, not the security boundary.
+      {
+        path: 'setter/problems',
+        component: ProblemManageComponent,
+        canActivate: [roleGuard],
+        data: { roles: STAFF_ROLES }
+      },
+      {
+        path: 'setter/problems/new',
+        component: ProblemEditorComponent,
+        canActivate: [roleGuard],
+        data: { roles: STAFF_ROLES }
+      },
+      {
+        path: 'setter/problems/:slug/edit',
+        component: ProblemEditorComponent,
+        canActivate: [roleGuard],
+        data: { roles: STAFF_ROLES }
+      },
+      {
+        path: 'setter/problems/:slug/testcases',
+        component: TestCaseEditorComponent,
+        canActivate: [roleGuard],
+        data: { roles: STAFF_ROLES }
+      },
+
       { path: 'about', component: AboutComponent },
       { path: '', redirectTo: 'problems', pathMatch: 'full' },
       // Unknown URLs render a real 404 inside the shell (keeps rail + topbar).

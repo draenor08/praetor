@@ -8,6 +8,8 @@ interface RailLink {
   path: string;
   label: string;
   icon: string;
+  /** When set, the link only renders for these roles. */
+  roles?: string[];
 }
 
 /**
@@ -36,8 +38,15 @@ export class ShellComponent {
     { path: '/standings', label: 'Standings', icon: '▤' },
     { path: '/submissions', label: 'Submissions', icon: '⟳' },
     { path: '/profile', label: 'Profile', icon: '◈' },
+    { path: '/setter/problems', label: 'Manage', icon: '✎', roles: ['PROBLEM_SETTER', 'ADMIN'] },
     { path: '/about', label: 'About', icon: 'ⓘ' }
   ];
+
+  /** Hides staff-only sections from contestants; roleGuard and the API still enforce access. */
+  get visibleLinks(): RailLink[] {
+    const role = this.tokenService.getUser()?.role;
+    return this.links.filter((link) => !link.roles || link.roles.includes(role));
+  }
 
   get username(): string {
     return this.tokenService.getUser()?.username ?? 'user';

@@ -1,0 +1,124 @@
+<div class="editor-header">
+  <h1 class="page-title">{{ editing ? 'Edit problem' : 'New problem' }}</h1>
+  <a routerLink="/setter/problems" class="btn-small">Back to list</a>
+</div>
+
+<p *ngIf="loading" class="muted">Loading…</p>
+<p *ngIf="loadError" class="error-message">{{ loadError }}</p>
+
+<form *ngIf="!loading && !loadError" class="editor-form" (ngSubmit)="save()" novalidate>
+
+  <p *ngIf="judgingLocked" class="freeze-notice">
+    A contest using this problem is running. Limits, judge mode and the slug are locked until it
+    ends — title, statement, constraints and editorial can still be edited.
+  </p>
+
+  <p *ngIf="archived" class="archive-notice">
+    This problem is archived: hidden from the public list, but its submissions and standings are
+    intact. Restore it from the manage list.
+  </p>
+
+  <div class="field-row">
+    <div class="field">
+      <label for="slug">Slug</label>
+      <input id="slug" name="slug" type="text" [(ngModel)]="form.slug"
+             [disabled]="judgingLocked" placeholder="a-plus-b" autocomplete="off">
+      <!-- Show what will actually be stored: the backend lowercases and trims. -->
+      <span class="hint" *ngIf="normalizedSlug && normalizedSlug !== form.slug">
+        Saved as <code>{{ normalizedSlug }}</code>
+      </span>
+      <span class="hint" *ngIf="editing && !judgingLocked">
+        Changing this changes the problem's URL.
+      </span>
+      <span class="field-error" *ngIf="errors['slug']">{{ errors['slug'] }}</span>
+    </div>
+
+    <div class="field">
+      <label for="title">Title</label>
+      <input id="title" name="title" type="text" [(ngModel)]="form.title" placeholder="A + B">
+      <span class="field-error" *ngIf="errors['title']">{{ errors['title'] }}</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="statement">Statement <span class="hint-inline">markdown</span></label>
+    <textarea id="statement" name="statement" rows="10" [(ngModel)]="form.statement"
+              placeholder="Read two integers a and b on one line. Output their sum."></textarea>
+    <span class="field-error" *ngIf="errors['statement']">{{ errors['statement'] }}</span>
+  </div>
+
+  <div class="field">
+    <label for="constraints">Constraints <span class="hint-inline">optional</span></label>
+    <textarea id="constraints" name="constraints" rows="3" [(ngModel)]="form.constraints"
+              placeholder="-10^9 &lt;= a, b &lt;= 10^9"></textarea>
+  </div>
+
+  <div class="field-row">
+    <div class="field">
+      <label for="difficulty">Difficulty</label>
+      <input id="difficulty" name="difficulty" type="number" min="0" max="4000"
+             [(ngModel)]="form.difficulty">
+      <span class="hint">Codeforces-style, 0–4000.</span>
+      <span class="field-error" *ngIf="errors['difficulty']">{{ errors['difficulty'] }}</span>
+    </div>
+
+    <div class="field">
+      <label for="timeLimitMs">Time limit (ms)</label>
+      <input id="timeLimitMs" name="timeLimitMs" type="number" min="1"
+             [(ngModel)]="form.timeLimitMs" [disabled]="judgingLocked">
+      <span class="field-error" *ngIf="errors['timeLimitMs']">{{ errors['timeLimitMs'] }}</span>
+    </div>
+
+    <div class="field">
+      <label for="memLimitKb">Memory limit (KB)</label>
+      <input id="memLimitKb" name="memLimitKb" type="number" min="1"
+             [(ngModel)]="form.memLimitKb" [disabled]="judgingLocked">
+      <span class="hint">≈ {{ memLimitMb }} MB</span>
+      <span class="field-error" *ngIf="errors['memLimitKb']">{{ errors['memLimitKb'] }}</span>
+    </div>
+  </div>
+
+  <div class="field-row">
+    <div class="field">
+      <label for="judgeMode">Judge mode</label>
+      <select id="judgeMode" name="judgeMode" [(ngModel)]="form.judgeMode"
+              [disabled]="judgingLocked">
+        <option *ngFor="let mode of judgeModes" [value]="mode">{{ mode }}</option>
+      </select>
+      <span class="hint">
+        EXACT: byte-for-byte · TOKEN: ignores whitespace · FLOAT: numeric tolerance ·
+        SPECIAL: your own checker
+      </span>
+    </div>
+
+    <!-- Only the field the chosen mode actually needs is shown, matching the backend's rule. -->
+    <div class="field" *ngIf="form.judgeMode === 'FLOAT'">
+      <label for="floatEps">Float tolerance</label>
+      <input id="floatEps" name="floatEps" type="number" step="any" min="0"
+             [(ngModel)]="form.floatEps" [disabled]="judgingLocked" placeholder="1e-6">
+      <span class="field-error" *ngIf="errors['floatEps']">{{ errors['floatEps'] }}</span>
+    </div>
+  </div>
+
+  <div class="field" *ngIf="form.judgeMode === 'SPECIAL'">
+    <label for="checkerCode">Checker code</label>
+    <textarea id="checkerCode" name="checkerCode" rows="10" class="code"
+              [(ngModel)]="form.checkerCode" [disabled]="judgingLocked"></textarea>
+    <span class="field-error" *ngIf="errors['checkerCode']">{{ errors['checkerCode'] }}</span>
+  </div>
+
+  <div class="field">
+    <label for="editorial">Editorial <span class="hint-inline">optional, markdown</span></label>
+    <textarea id="editorial" name="editorial" rows="6" [(ngModel)]="form.editorial"></textarea>
+  </div>
+
+  <p *ngIf="saveError" class="error-message">{{ saveError }}</p>
+
+  <div class="form-actions">
+    <button type="submit" class="btn-primary" [disabled]="saving">
+      {{ saving ? 'Saving…' : (editing ? 'Save changes' : 'Create and add test cases') }}
+    </button>
+    <a *ngIf="editing" [routerLink]="['/setter/problems', originalSlug, 'testcases']"
+       class="btn-small">Edit test cases</a>
+  </div>
+</form>
