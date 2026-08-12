@@ -1,5 +1,7 @@
 package com.praetor.problem.service;
 
+import com.praetor.contest.service.ContestAccessService;
+import com.praetor.identity.entity.User;
 import com.praetor.problem.dto.ProblemDetail;
 import com.praetor.problem.dto.ProblemSummary;
 import com.praetor.problem.dto.SampleDto;
@@ -26,23 +28,47 @@ public class ProblemReadService {
 
     private final ProblemViewRepository problemRepo;
     private final JudgeTestCaseRepository testCaseRepo;
+    private final ContestAccessService contestAccess;
 
-    public ProblemReadService(ProblemViewRepository problemRepo, JudgeTestCaseRepository testCaseRepo) {
+    public ProblemReadService(ProblemViewRepository problemRepo, JudgeTestCaseRepository testCaseRepo,
+                              ContestAccessService contestAccess) {
         this.problemRepo = problemRepo;
         this.testCaseRepo = testCaseRepo;
+        this.contestAccess = contestAccess;
     }
 
+    /**
+     * The problem list. Staff see every unarchived problem; everyone else sees the list minus
+     * problems under contest embargo, which reappear once the contest using them ends.
+     *
+     * @param user the caller, or {@code null} for an anonymous reader
+     */
     @Transactional(readOnly = true)
-    public List<ProblemSummary> list() {
-        return problemRepo.findAllByArchivedFalseOrderByDifficultyAscTitleAsc().stream()
+    public List<ProblemSummary> list(User user) {
+        List<ProblemView> problems = contestAccess.isStaff(user)
+                ? problemRepo.findAllByArchivedFalseOrderByDifficultyAscTitleAsc()
+                : problemRepo.findPublicListOrderByDifficultyAscTitleAsc();
+        return problems.stream()
                 .map(p -> new ProblemSummary(p.getSlug(), p.getTitle(), p.getDifficulty(), p.getJudgeMode()))
                 .toList();
     }
 
+    /**
+     * One problem's statement. An embargoed problem is refused with 403 unless the caller is staff
+     * or is registered for the contest that is running it — otherwise a participant-only statement
+     * would be one typed slug away.
+     *
+     * @param user the caller, or {@code null} for an anonymous reader
+     */
     @Transactional(readOnly = true)
-    public ProblemDetail get(String slug) {
+    public ProblemDetail get(String slug, User user) {
         ProblemView p = problemRepo.findBySlug(slug)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "problem not found: " + slug));
+
+        if (!contestAccess.mayAccessProblem(p.getId(), user)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "this problem is part of a contest that has not ended");
+        }
 
         List<SampleDto> samples = testCaseRepo.findByProblemIdOrderByOrdAsc(p.getId()).stream()
                 .filter(tc -> SAMPLE.equals(tc.getKind()))

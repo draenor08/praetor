@@ -1,5 +1,6 @@
 package com.praetor.submission.service;
 
+import com.praetor.contest.service.ContestAccessService;
 import com.praetor.identity.entity.User;
 import com.praetor.identity.repository.UserRepository;
 import com.praetor.submission.SubmissionStatus;
@@ -33,11 +34,13 @@ public class SubmissionService {
     private final UserRepository userRepo;
     private final JudgeService judgeService;
     private final SubmissionRateLimiter rateLimiter;
+    private final ContestAccessService contestAccess;
     private final TransactionTemplate tx;
 
     public SubmissionService(SubmissionRepository subRepo, SubmissionResultRepository resultRepo,
                              JudgeProblemRepository problemRepo, UserRepository userRepo,
                              JudgeService judgeService, SubmissionRateLimiter rateLimiter,
+                             ContestAccessService contestAccess,
                              PlatformTransactionManager txManager) {
         this.subRepo = subRepo;
         this.resultRepo = resultRepo;
@@ -45,6 +48,7 @@ public class SubmissionService {
         this.userRepo = userRepo;
         this.judgeService = judgeService;
         this.rateLimiter = rateLimiter;
+        this.contestAccess = contestAccess;
         this.tx = new TransactionTemplate(txManager);
     }
 
@@ -62,6 +66,13 @@ public class SubmissionService {
         JudgeProblem problem = problemRepo.findBySlug(req.problemSlug())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "problem not found: " + req.problemSlug()));
+
+        // Same embargo the statement enforces: without it a non-participant could submit to a
+        // running contest's problem by slug alone, and land on its standings.
+        if (!contestAccess.mayAccessProblem(problem.getId(), user)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "this problem is part of a contest that has not ended");
+        }
 
         // Last, deliberately: the cooldown is spent by submissions the judge will actually run,
         // so a bad language or a mistyped slug costs the user nothing.
