@@ -1,6 +1,7 @@
 package com.praetor.contest.repository;
 
 import com.praetor.contest.entity.Contest;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -47,4 +48,52 @@ public interface ContestAccessRepository extends JpaRepository<Contest, Long> {
             """, nativeQuery = true)
     boolean existsRunningRegisteredContestForProblem(@Param("problemId") Long problemId,
                                                      @Param("userId") Long userId);
+
+    /**
+     * True if a contest may use this problem: nobody has ever been able to read it, and no other
+     * contest has already claimed it. The single source of the eligibility rule — the pool query
+     * below selects on exactly the same two conditions.
+     */
+    @Query(value = """
+            SELECT EXISTS (
+              SELECT 1 FROM problems p
+              WHERE p.id = :problemId
+                AND p.published_at IS NULL
+                AND NOT EXISTS (SELECT 1 FROM contest_problems cp WHERE cp.problem_id = p.id))
+            """, nativeQuery = true)
+    boolean isEligibleForContest(@Param("problemId") Long problemId);
+
+    /** Why a problem is not eligible, for a message worth reading. Null when it is eligible. */
+    @Query(value = """
+            SELECT CASE
+                     WHEN p.id IS NULL THEN 'no such problem'
+                     WHEN EXISTS (SELECT 1 FROM contest_problems cp WHERE cp.problem_id = p.id)
+                       THEN 'already used by a contest'
+                     WHEN p.published_at IS NOT NULL
+                       THEN 'has been publicly visible since ' || to_char(p.published_at, 'YYYY-MM-DD')
+                     ELSE NULL
+                   END
+            FROM problems p WHERE p.id = :problemId
+            """, nativeQuery = true)
+    String ineligibleReason(@Param("problemId") Long problemId);
+
+    /**
+     * The eligible pool, for the contest creation page. Carries the counts an admin needs to judge
+     * a draft at a glance — a problem with no test cases cannot be judged at all.
+     */
+    @Query(value = """
+            SELECT p.id         AS problemId,
+                   p.slug       AS slug,
+                   p.title      AS title,
+                   p.difficulty AS difficulty,
+                   p.judge_mode AS judgeMode,
+                   u.username   AS author,
+                   (SELECT count(*) FROM test_cases tc WHERE tc.problem_id = p.id) AS testCases
+            FROM problems p
+            LEFT JOIN users u ON u.id = p.created_by
+            WHERE p.published_at IS NULL
+              AND NOT EXISTS (SELECT 1 FROM contest_problems cp WHERE cp.problem_id = p.id)
+            ORDER BY p.difficulty ASC, p.title ASC
+            """, nativeQuery = true)
+    List<EligibleProblemRow> findEligiblePool();
 }

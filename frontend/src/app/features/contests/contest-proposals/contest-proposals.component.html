@@ -1,0 +1,78 @@
+<a [routerLink]="['/contests', contestId]" class="back-link">← Contest</a>
+
+<div class="head">
+  <h1 class="page-title">Problem proposals</h1>
+  <span *ngIf="contest" class="contest-name">{{ contest.title }}</span>
+  <button *ngIf="isAdmin && contest" type="button" class="btn-small toggle" (click)="toggleCalls()">
+    {{ contest.callsOpen ? 'Close proposals' : 'Open for proposals' }}
+  </button>
+</div>
+
+<p *ngIf="contest && !contest.callsOpen" class="closed-note">
+  This contest is not accepting proposals. Setters cannot offer problems until it is opened.
+</p>
+
+<p *ngIf="error" class="error-message">{{ error }}</p>
+<p *ngIf="notice" class="notice-message">{{ notice }}</p>
+<p *ngIf="loading" class="muted">Loading…</p>
+
+<h3 class="section-title">Awaiting a decision</h3>
+
+<table *ngIf="pending.length > 0" class="proposal-table">
+  <thead>
+    <tr>
+      <th>Problem</th>
+      <th class="col-num">Diff</th>
+      <th class="col-mode">Judge</th>
+      <th class="col-num">Tests</th>
+      <th>Setter</th>
+      <th>Note</th>
+      <th class="col-actions" *ngIf="isAdmin">Decision</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let p of pending; let i = index">
+      <td>
+        {{ p.title }}
+        <span class="slug">{{ p.slug }}</span>
+      </td>
+      <td class="col-num num">{{ p.difficulty }}</td>
+      <td class="col-mode"><span class="tag">{{ p.judgeMode }}</span></td>
+      <td class="col-num num">
+        <span [class.zero-tests]="p.testCases === 0">{{ p.testCases }}</span>
+      </td>
+      <td class="muted">{{ p.proposedBy }}</td>
+      <td class="note">{{ p.note || '—' }}</td>
+      <td class="col-actions" *ngIf="isAdmin">
+        <div class="decide">
+          <input class="label-input" type="text" maxlength="2"
+                 [placeholder]="suggestedLabel(i)"
+                 [(ngModel)]="labels[p.id]" [attr.aria-label]="'Label for ' + p.title" />
+          <button type="button" class="btn-small" [disabled]="busyId === p.id"
+                  (click)="accept(p, i)">Accept</button>
+          <button type="button" class="btn-small btn-danger" [disabled]="busyId === p.id"
+                  (click)="reject(p)">Reject</button>
+        </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<p *ngIf="!loading && pending.length === 0" class="muted empty">Nothing waiting.</p>
+
+<h3 class="section-title" *ngIf="decided.length > 0">Decided</h3>
+
+<table *ngIf="decided.length > 0" class="proposal-table">
+  <tbody>
+    <tr *ngFor="let p of decided">
+      <td>
+        {{ p.title }}
+        <span class="slug">{{ p.slug }}</span>
+      </td>
+      <td class="muted">{{ p.proposedBy }}</td>
+      <td class="col-status">
+        <span class="status-pill status-{{ p.status }}">{{ p.status }}</span>
+      </td>
+    </tr>
+  </tbody>
+</table>

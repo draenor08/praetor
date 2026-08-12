@@ -6,5 +6,7 @@ public record ContestSummary(
         String title,
         String startsAt,
         String endsAt,
-        String scoring) {
+        String scoring,
+        /** Setters may propose problems for this contest. */
+        boolean callsOpen) {
 }

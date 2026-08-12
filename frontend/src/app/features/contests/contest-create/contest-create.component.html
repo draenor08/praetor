@@ -1,0 +1,108 @@
+<a routerLink="/contests" class="back-link">← Contests</a>
+
+<h1 class="page-title">New contest</h1>
+
+<p *ngIf="error" class="error-message">{{ error }}</p>
+
+<form class="contest-form" (ngSubmit)="save()">
+  <div class="field">
+    <label for="title">Title</label>
+    <input id="title" name="title" type="text" [(ngModel)]="title" placeholder="Praetor Round 3" />
+    <span *ngIf="fieldErrors['title']" class="field-error">{{ fieldErrors['title'] }}</span>
+  </div>
+
+  <div class="field-row">
+    <div class="field">
+      <label for="startsAt">Starts</label>
+      <input id="startsAt" name="startsAt" type="datetime-local" [(ngModel)]="startsAt" />
+      <span *ngIf="fieldErrors['startsAt']" class="field-error">{{ fieldErrors['startsAt'] }}</span>
+    </div>
+
+    <div class="field">
+      <label for="endsAt">Ends</label>
+      <input id="endsAt" name="endsAt" type="datetime-local" [(ngModel)]="endsAt" />
+      <span *ngIf="fieldErrors['endsAt']" class="field-error">{{ fieldErrors['endsAt'] }}</span>
+    </div>
+  </div>
+
+  <div class="field-row">
+    <div class="field">
+      <label for="freezeMin">Freeze (minutes before the end)</label>
+      <input id="freezeMin" name="freezeMin" type="number" min="0" [(ngModel)]="freezeMin" />
+      <span class="hint">0 disables the freeze.</span>
+      <span *ngIf="fieldErrors['freezeMin']" class="field-error">{{ fieldErrors['freezeMin'] }}</span>
+    </div>
+
+    <div class="field">
+      <label for="scoring">Scoring</label>
+      <select id="scoring" name="scoring" [(ngModel)]="scoring">
+        <option value="ICPC">ICPC</option>
+      </select>
+      <span class="hint">POINTS is not implemented yet.</span>
+    </div>
+  </div>
+
+  <h3 class="section-title">Problems <span class="counter">{{ pickedCount }} picked</span></h3>
+  <p class="section-note">
+    Only draft problems appear here. A problem that has ever been publicly visible, or that another
+    contest already uses, can no longer go into a contest.
+  </p>
+
+  <p *ngIf="loading" class="muted">Loading the pool…</p>
+
+  <table *ngIf="!loading && pool.length > 0" class="pool-table">
+    <thead>
+      <tr>
+        <th class="col-pick"></th>
+        <th>Problem</th>
+        <th class="col-num">Diff</th>
+        <th class="col-mode">Judge</th>
+        <th class="col-num">Tests</th>
+        <th>Author</th>
+        <th class="col-label">Label</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let p of pool" [class.row-picked]="isPicked(p)">
+        <td class="col-pick">
+          <input type="checkbox" [checked]="isPicked(p)" (change)="toggle(p)"
+                 [attr.aria-label]="'Include ' + p.title" />
+        </td>
+        <td>
+          {{ p.title }}
+          <span class="slug">{{ p.slug }}</span>
+        </td>
+        <td class="col-num num">{{ p.difficulty }}</td>
+        <td class="col-mode"><span class="tag">{{ p.judgeMode }}</span></td>
+        <td class="col-num num">
+          <!-- A problem with no test cases cannot be judged at all. -->
+          <span [class.zero-tests]="p.testCases === 0">{{ p.testCases }}</span>
+        </td>
+        <td class="muted">{{ p.author }}</td>
+        <td class="col-label"><span *ngIf="isPicked(p)" class="tag prob">{{ label(p) }}</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p *ngIf="!loading && pool.length === 0" class="empty-pool">
+    No draft problems are available. A setter must author one as a draft, or you can open this
+    contest for proposals below.
+  </p>
+
+  <span *ngIf="fieldErrors['problems']" class="field-error">{{ fieldErrors['problems'] }}</span>
+
+  <label class="checkbox-field">
+    <input type="checkbox" name="callsOpen" [(ngModel)]="callsOpen" />
+    Open this contest for setter proposals
+  </label>
+  <span class="hint">
+    Setters can then offer their drafts for it; you decide what gets in, and under which label.
+  </span>
+
+  <div class="form-actions">
+    <button type="submit" class="btn-primary" [disabled]="saving">
+      {{ saving ? 'Creating…' : 'Create contest' }}
+    </button>
+    <a routerLink="/contests" class="btn-small">Cancel</a>
+  </div>
+</form>

@@ -38,7 +38,7 @@
         <span *ngIf="!p.inLiveContest && !p.archived" class="muted">—</span>
       </td>
       <td class="col-actions">
-        <div class="actions" *ngIf="pendingDelete !== p.slug">
+        <div class="actions" *ngIf="pendingDelete !== p.slug && pendingRestore !== p.slug">
           <a [routerLink]="['/setter/problems', p.slug, 'edit']" class="btn-small">Edit</a>
           <a [routerLink]="['/setter/problems', p.slug, 'testcases']" class="btn-small">Tests</a>
           <button type="button" class="btn-small" [disabled]="busySlug === p.slug"
@@ -53,6 +53,16 @@
           <span *ngIf="!p.deletable" class="lock-reason" [title]="p.lockReason || ''">
             Can't delete: {{ p.lockReason }}
           </span>
+        </div>
+
+        <!-- Restoring publishes the statement for good; it can never enter a contest afterwards. -->
+        <div class="actions confirm" *ngIf="pendingRestore === p.slug">
+          <span class="confirm-text">
+            Publish {{ p.slug }}? It becomes visible to everyone and can no longer be used by a contest.
+          </span>
+          <button type="button" class="btn-small" [disabled]="busySlug === p.slug"
+                  (click)="toggleArchived(p)">Publish</button>
+          <button type="button" class="btn-small" (click)="pendingRestore = null">Cancel</button>
         </div>
 
         <div class="actions confirm" *ngIf="pendingDelete === p.slug">

@@ -1,11 +1,18 @@
 package com.praetor.contest.controller;
 
+import com.praetor.contest.dto.AcceptProposalRequest;
+import com.praetor.contest.dto.CallsOpenRequest;
 import com.praetor.contest.dto.ContestResponse;
 import com.praetor.contest.dto.ContestSummary;
 import com.praetor.contest.dto.CreateContestRequest;
+import com.praetor.contest.dto.EligibleProblemDto;
+import com.praetor.contest.dto.ProposalDto;
+import com.praetor.contest.dto.ProposeRequest;
 import com.praetor.contest.dto.RegisterRequest;
 import com.praetor.contest.dto.StandingsResponse;
+import com.praetor.contest.service.ContestAccessService;
 import com.praetor.contest.service.ContestService;
+import com.praetor.contest.service.ProposalService;
 import com.praetor.contest.standings.StandingsService;
 import com.praetor.identity.entity.User;
 import jakarta.validation.Valid;
@@ -19,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/contests")
@@ -26,10 +34,15 @@ public class ContestController {
 
     private final ContestService service;
     private final StandingsService standingsService;
+    private final ProposalService proposals;
+    private final ContestAccessService access;
 
-    public ContestController(ContestService service, StandingsService standingsService) {
+    public ContestController(ContestService service, StandingsService standingsService,
+                             ProposalService proposals, ContestAccessService access) {
         this.service = service;
         this.standingsService = standingsService;
+        this.proposals = proposals;
+        this.access = access;
     }
 
     /** Create a contest — ADMIN only (gated in-service → 403). */
@@ -52,6 +65,59 @@ public class ContestController {
     @GetMapping("/{id}")
     public ContestResponse get(@PathVariable Long id, @AuthenticationPrincipal User user) {
         return service.get(id, user);
+    }
+
+    /**
+     * Draft problems a contest may still use. Staff only — gated in-service, like everything else
+     * in this module, since the GET chain here is permitAll with an optional JWT.
+     */
+    @GetMapping("/eligible-problems")
+    public List<EligibleProblemDto> eligibleProblems(@AuthenticationPrincipal User user) {
+        if (!access.isStaff(user)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "only staff may view the problem pool");
+        }
+        return access.eligiblePool();
+    }
+
+    /** Open or close this contest to setter proposals — ADMIN. */
+    @PostMapping("/{id}/calls")
+    public ContestResponse setCalls(@PathVariable Long id, @Valid @RequestBody CallsOpenRequest req,
+                                    @AuthenticationPrincipal User user) {
+        return service.setCallsOpen(id, req.open(), user);
+    }
+
+    /** A setter offers one of their drafts for this contest. */
+    @PostMapping("/{id}/proposals")
+    public ResponseEntity<ProposalDto> propose(@PathVariable Long id, @Valid @RequestBody ProposeRequest req,
+                                               @AuthenticationPrincipal User user) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(proposals.propose(id, req, user));
+    }
+
+    /** This contest's proposals — the admin's review queue (staff may read). */
+    @GetMapping("/{id}/proposals")
+    public List<ProposalDto> listProposals(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        return proposals.listForContest(id, user);
+    }
+
+    /** Accept a proposal, putting the problem in the contest under a label — ADMIN. */
+    @PostMapping("/{id}/proposals/{proposalId}/accept")
+    public ProposalDto accept(@PathVariable Long id, @PathVariable Long proposalId,
+                              @Valid @RequestBody AcceptProposalRequest req,
+                              @AuthenticationPrincipal User user) {
+        return proposals.accept(id, proposalId, req, user);
+    }
+
+    /** Turn a proposal down — ADMIN. The problem stays a draft and can go elsewhere. */
+    @PostMapping("/{id}/proposals/{proposalId}/reject")
+    public ProposalDto reject(@PathVariable Long id, @PathVariable Long proposalId,
+                              @AuthenticationPrincipal User user) {
+        return proposals.reject(id, proposalId, user);
+    }
+
+    /** Everything the calling setter has offered, across contests. */
+    @GetMapping("/my-proposals")
+    public List<ProposalDto> myProposals(@AuthenticationPrincipal User user) {
+        return proposals.listMine(user);
     }
 
     /** Register the caller for a contest (USER). */

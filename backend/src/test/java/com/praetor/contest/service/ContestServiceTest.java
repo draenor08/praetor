@@ -74,7 +74,8 @@ class ContestServiceTest {
                 e,
                 15,
                 "ICPC",
-                problems);
+                problems,
+                false);
     }
 
     private List<ContestProblemSpec> twoProblems() {
@@ -106,6 +107,9 @@ class ContestServiceTest {
 
     @Test
     void create_adminOk() {
+
+        when(contestAccess.isEligibleForContest(anyLong()))
+                .thenReturn(true);
 
         when(contestRepo.save(any()))
                 .thenAnswer(inv ->
@@ -341,6 +345,72 @@ class ContestServiceTest {
 
         verify(registrationRepo, never())
                 .save(any());
+    }
+
+    // ---- eligibility: a contest may only use a problem nobody has been able to read ----
+
+    @Test
+    void create_publishedProblem_409_andWritesNothing() {
+
+        when(contestAccess.isEligibleForContest(anyLong()))
+                .thenReturn(false);
+
+        when(contestAccess.ineligibleReason(anyLong()))
+                .thenReturn("has been publicly visible since 2026-01-01");
+
+        Throwable t =
+                org.assertj.core.api.Assertions
+                        .catchThrowable(() ->
+                                service.create(
+                                        req(start, end, twoProblems()),
+                                        user(1L, "ADMIN")));
+
+        assertStatus(
+                t,
+                HttpStatus.CONFLICT);
+
+        // checked before the contest row is written, so a refused request leaves nothing behind
+        verify(contestRepo, never())
+                .save(any());
+
+        verify(contestProblemRepo, never())
+                .saveAllAndFlush(any());
+    }
+
+    @Test
+    void create_noProblemsAndNoCallForThem_400() {
+
+        Throwable t =
+                org.assertj.core.api.Assertions
+                        .catchThrowable(() ->
+                                service.create(
+                                        new CreateContestRequest(
+                                                "Round", start, end, 15, "ICPC", List.of(), false),
+                                        user(1L, "ADMIN")));
+
+        assertStatus(
+                t,
+                HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void create_noProblemsButOpenForProposals_isAllowed() {
+
+        when(contestRepo.save(any()))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        when(contestProblemRepo.findRowsByContestId(any()))
+                .thenReturn(List.of());
+
+        var res =
+                service.create(
+                        new CreateContestRequest(
+                                "Round", start, end, 15, "ICPC", List.of(), true),
+                        user(1L, "ADMIN"));
+
+        // an empty contest is only meaningful because setters are about to fill it
+        assertThat(res.callsOpen()).isTrue();
+        assertThat(res.problems()).isEmpty();
     }
 
     // ---- contest page: registration flag + the embargo on problem identity ----

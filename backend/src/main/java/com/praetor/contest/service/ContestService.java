@@ -1,6 +1,7 @@
 package com.praetor.contest.service;
 
 import com.praetor.contest.dto.ContestProblemSlot;
+import com.praetor.contest.dto.ContestProblemSpec;
 import com.praetor.contest.dto.ContestResponse;
 import com.praetor.contest.dto.ContestSummary;
 import com.praetor.contest.dto.CreateContestRequest;
@@ -51,8 +52,26 @@ public class ContestService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "duplicate problem labels");
         }
 
-        Contest contest = contestRepo.save(new Contest(
-                req.title(), req.startsAt(), req.endsAt(), req.freezeMin(), req.scoring()));
+        boolean callsOpen = Boolean.TRUE.equals(req.callsOpen());
+        if (req.problems().isEmpty() && !callsOpen) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "a contest needs problems, or must be opened for setter proposals");
+        }
+
+        // Every problem must still be unread by anyone. Checked before the contest row is written,
+        // so a rejected request leaves nothing behind.
+        for (ContestProblemSpec spec : req.problems()) {
+            if (!contestAccess.isEligibleForContest(spec.problemId())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "problem " + spec.problemId() + " cannot be used by a contest: "
+                                + contestAccess.ineligibleReason(spec.problemId()));
+            }
+        }
+
+        Contest draft = new Contest(
+                req.title(), req.startsAt(), req.endsAt(), req.freezeMin(), req.scoring());
+        draft.setCallsOpen(callsOpen);
+        Contest contest = contestRepo.save(draft);
         List<ContestProblem> problems = req.problems().stream()
                 .map(p -> new ContestProblem(contest.getId(), p.problemId(), p.label(), p.ord()))
                 .toList();
@@ -67,7 +86,7 @@ public class ContestService {
         return contestRepo.findAll().stream()
                 .map(c -> new ContestSummary(c.getId(), c.getTitle(),
                         c.getStartsAt().toInstant().toString(),
-                        c.getEndsAt().toInstant().toString(), c.getScoring()))
+                        c.getEndsAt().toInstant().toString(), c.getScoring(), c.isCallsOpen()))
                 .toList();
     }
 
@@ -86,6 +105,19 @@ public class ContestService {
         boolean registered = user != null
                 && registrationRepo.existsById(new RegistrationId(id, user.getId()));
         return toResponse(contest, registered, user);
+    }
+
+    /** Open or close the contest to setter proposals — ADMIN only. */
+    @Transactional
+    public ContestResponse setCallsOpen(Long id, boolean open, User user) {
+        if (!"ADMIN".equals(user.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "only ADMIN may change a contest");
+        }
+        Contest contest = contestRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "contest not found"));
+        contest.setCallsOpen(open);
+        contestRepo.save(contest);
+        return toResponse(contest, false, user);
     }
 
     @Transactional
@@ -121,6 +153,7 @@ public class ContestService {
                 contest.getId(), contest.getTitle(),
                 contest.getStartsAt().toInstant().toString(),
                 contest.getEndsAt().toInstant().toString(),
-                contest.getFreezeMin(), contest.getScoring(), registered, visible, problems);
+                contest.getFreezeMin(), contest.getScoring(), registered, contest.isCallsOpen(),
+                visible, problems);
     }
 }

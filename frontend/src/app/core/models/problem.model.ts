@@ -79,6 +79,11 @@ export interface ProblemInput {
   floatEps: number | null;
   checkerCode: string | null;
   editorial: string | null;
+  /**
+   * Create it as a draft: archived and unpublished, so a contest can still use it. Only read on
+   * create — publication is one-way, so an existing problem's status is never changed this way.
+   */
+  draft?: boolean | null;
 }
 
 /** GET /api/setter/problems/{slug}/usage — why delete is or isn't allowed. */

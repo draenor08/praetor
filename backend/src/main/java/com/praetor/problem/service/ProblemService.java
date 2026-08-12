@@ -114,6 +114,15 @@ public class ProblemService {
                 request.editorial(),
                 user.getId());
 
+        // Drafts are the pool contests draw from: a problem is only usable by a contest while
+        // nobody has been able to read it. Created public unless the author asks for a draft, which
+        // keeps the default behaviour for everyday problem authoring.
+        boolean draft = Boolean.TRUE.equals(request.draft());
+        problem.setArchived(draft);
+        if (!draft) {
+            problem.publish();
+        }
+
         return toResponse(
                 problemRepository.save(problem));
     }
@@ -234,6 +243,12 @@ public class ProblemService {
                                         "problem not found"));
 
         problem.setArchived(archived);
+
+        // Un-archiving is publication: the statement becomes readable, which spends the problem's
+        // contest eligibility for good. Archiving it again later does not give that back.
+        if (!archived) {
+            problem.publish();
+        }
 
         return toResponse(
                 problemRepository.save(problem));

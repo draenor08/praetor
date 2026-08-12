@@ -58,6 +58,14 @@ public class Problem {
     @Column(nullable = false)
     private boolean archived = false;
 
+    /**
+     * When this problem first became publicly visible; null while it is still a draft. Set once and
+     * never cleared — re-archiving hides the statement again but cannot unsee it, and a contest may
+     * only use a problem that nobody has had the chance to read. See {@link #publish()}.
+     */
+    @Column(name = "published_at")
+    private ZonedDateTime publishedAt;
+
     @Column(name = "created_at", nullable = false)
     private ZonedDateTime createdAt;
 
@@ -161,6 +169,26 @@ public class Problem {
 
     public void setArchived(boolean archived) {
         this.archived = archived;
+    }
+
+    public ZonedDateTime getPublishedAt() {
+        return publishedAt;
+    }
+
+    /**
+     * Mark the problem as having been publicly visible. Idempotent — the first publication is the
+     * one that counts, because eligibility asks whether the statement was ever readable, not when
+     * it last was.
+     */
+    public void publish() {
+        if (publishedAt == null) {
+            publishedAt = ZonedDateTime.now();
+        }
+    }
+
+    /** A problem no one has been able to read yet, and therefore usable by a contest. */
+    public boolean isDraft() {
+        return publishedAt == null;
     }
 
     public void setSlug(String slug) {

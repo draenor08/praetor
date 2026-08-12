@@ -6,6 +6,9 @@
     <h1 class="page-title">{{ c.title }}</h1>
     <span class="tag">{{ c.scoring }}</span>
     <span *ngIf="c.registered" class="badge badge-registered">Registered</span>
+    <a *ngIf="isPrivileged" [routerLink]="['/contests', c.id, 'proposals']" class="proposals-link">
+      Proposals<span *ngIf="c.callsOpen"> · open</span>
+    </a>
     <button *ngIf="canRegister" class="btn-primary register-btn" (click)="register()" [disabled]="registering">
       {{ registering ? 'Registering…' : 'Register' }}
     </button>

@@ -12,7 +12,13 @@ import {
   TestCaseRow
 } from '../models/problem.model';
 import { SubmissionCreated, SubmissionResponse, SubmitRequest } from '../models/submission.model';
-import { ContestDetail, ContestSummary } from '../models/contest.model';
+import {
+  ContestDetail,
+  ContestSummary,
+  CreateContestRequest,
+  EligibleProblem,
+  Proposal
+} from '../models/contest.model';
 import { Standings } from '../models/standings.model';
 import { Leaderboard, UserRating } from '../models/rating.model';
 
@@ -59,6 +65,50 @@ export class ApiService {
 
   registerForContest(id: number): Observable<void> {
     return this.http.post<void>(`/api/contests/${id}/register`, { virtual: false });
+  }
+
+  // --- Contest authoring (staff) -------------------------------------------
+
+  /** Create a contest (ADMIN). */
+  createContest(body: CreateContestRequest): Observable<ContestDetail> {
+    return this.http.post<ContestDetail>('/api/contests', body);
+  }
+
+  /** Draft problems a contest may still use (staff). */
+  getEligibleProblems(): Observable<EligibleProblem[]> {
+    return this.http.get<EligibleProblem[]>('/api/contests/eligible-problems');
+  }
+
+  /** Open or close a contest to setter proposals (ADMIN). */
+  setContestCalls(id: number, open: boolean): Observable<ContestDetail> {
+    return this.http.post<ContestDetail>(`/api/contests/${id}/calls`, { open });
+  }
+
+  /** A setter offers one of their drafts for a contest. */
+  proposeProblem(contestId: number, problemId: number, note: string | null): Observable<Proposal> {
+    return this.http.post<Proposal>(`/api/contests/${contestId}/proposals`, { problemId, note });
+  }
+
+  /** A contest's proposals — the admin's review queue (staff). */
+  getProposals(contestId: number): Observable<Proposal[]> {
+    return this.http.get<Proposal[]>(`/api/contests/${contestId}/proposals`);
+  }
+
+  /** Everything the calling setter has offered, across contests. */
+  getMyProposals(): Observable<Proposal[]> {
+    return this.http.get<Proposal[]>('/api/contests/my-proposals');
+  }
+
+  /** Accept a proposal under a label, putting the problem in the contest (ADMIN). */
+  acceptProposal(contestId: number, proposalId: number, label: string): Observable<Proposal> {
+    return this.http.post<Proposal>(
+      `/api/contests/${contestId}/proposals/${proposalId}/accept`, { label });
+  }
+
+  /** Turn a proposal down (ADMIN). */
+  rejectProposal(contestId: number, proposalId: number): Observable<Proposal> {
+    return this.http.post<Proposal>(
+      `/api/contests/${contestId}/proposals/${proposalId}/reject`, {});
   }
 
   // --- Ratings (public reads) ----------------------------------------------

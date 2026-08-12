@@ -153,7 +153,7 @@ class ProblemServiceTest {
                         "TOKEN",
                         null,
                         null,
-                        "Editorial");
+                        "Editorial", null);
 
         var response =
                 service.update(
@@ -345,7 +345,7 @@ class ProblemServiceTest {
                         "EXACT",
                         null,
                         null,
-                        null);
+                        null, null);
 
         Throwable t = catchThrowable(() ->
                 service.update(
@@ -386,7 +386,7 @@ class ProblemServiceTest {
                         "EXACT",
                         null,
                         null,
-                        null);
+                        null, null);
 
         var response =
                 service.update(
@@ -522,7 +522,7 @@ class ProblemServiceTest {
                         "EXACT",
                         null,
                         null,
-                        null);
+                        null, null);
 
         Throwable t = catchThrowable(() ->
                 service.create(
@@ -555,7 +555,7 @@ class ProblemServiceTest {
                         "FLOAT",
                         null,
                         null,
-                        null);
+                        null, null);
 
         Throwable t = catchThrowable(() ->
                 service.create(
@@ -584,7 +584,7 @@ class ProblemServiceTest {
                 "EXACT",
                 null,
                 null,
-                null);
+                null, null);
     }
 
     private ProblemUsageRepository.ManagedProblemRow managedRow(

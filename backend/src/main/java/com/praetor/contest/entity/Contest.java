@@ -37,6 +37,10 @@ public class Contest {
     @Column(nullable = false)
     private String scoring;
 
+    /** Whether problem setters may currently propose problems for this contest. */
+    @Column(name = "calls_open", nullable = false)
+    private boolean callsOpen = false;
+
     @Column(name = "created_at", nullable = false)
     private ZonedDateTime createdAt;
 
@@ -61,6 +65,14 @@ public class Contest {
 
     public Long getId() {
         return id;
+    }
+
+    public boolean isCallsOpen() {
+        return callsOpen;
+    }
+
+    public void setCallsOpen(boolean callsOpen) {
+        this.callsOpen = callsOpen;
     }
 
     public String getTitle() {

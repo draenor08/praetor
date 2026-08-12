@@ -40,6 +40,7 @@ export class ShellComponent {
     { path: '/leaderboard', label: 'Leaderboard', icon: '★' },
     { path: '/profile', label: 'Profile', icon: '◈' },
     { path: '/setter/problems', label: 'Manage', icon: '✎', roles: ['PROBLEM_SETTER', 'ADMIN'] },
+    { path: '/setter/calls', label: 'Calls', icon: '✉', roles: ['PROBLEM_SETTER', 'ADMIN'] },
     { path: '/about', label: 'About', icon: 'ⓘ' }
   ];
 

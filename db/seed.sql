@@ -218,6 +218,59 @@ INSERT INTO test_cases (problem_id, ord, kind, input, expected) VALUES
   ((SELECT id FROM problems WHERE slug='palindrome-check'), 2, 'HIDDEN', 'praetor','NO'),
   ((SELECT id FROM problems WHERE slug='palindrome-check'), 3, 'HIDDEN', 'a',      'YES');
 
+-- Problems 13-16: the DRAFT pool -------------------------------------------
+-- Archived and never published, which is exactly what makes them usable by a contest: a problem
+-- that has ever been publicly visible can never go into one. Without these the contest creation
+-- page would open with an empty pool, since every problem above is public.
+INSERT INTO problems (slug, title, statement, constraints, difficulty, judge_mode, created_by, archived, published_at)
+VALUES ('grid-walk', 'Grid Walk',
+        'Read n and m. Output the number of distinct shortest paths from the top-left to the bottom-right of an n x m grid, modulo 10^9+7.',
+        '1 <= n, m <= 1000', 1400, 'EXACT',
+        (SELECT id FROM users WHERE username='setter02'), TRUE, NULL);
+
+INSERT INTO test_cases (problem_id, ord, kind, input, expected) VALUES
+  ((SELECT id FROM problems WHERE slug='grid-walk'), 1, 'SAMPLE', '2 2',   '2'),
+  ((SELECT id FROM problems WHERE slug='grid-walk'), 2, 'HIDDEN', '3 3',   '6'),
+  ((SELECT id FROM problems WHERE slug='grid-walk'), 3, 'HIDDEN', '1 7',   '1');
+
+INSERT INTO problems (slug, title, statement, constraints, difficulty, judge_mode, created_by, archived, published_at)
+VALUES ('two-sums', 'Two Sums',
+        'Read n and a target t, then n integers. Output YES if some two of them sum to t, else NO.',
+        '2 <= n <= 1000, values fit in 32 bits', 1200, 'EXACT',
+        (SELECT id FROM users WHERE username='setter01'), TRUE, NULL);
+
+INSERT INTO test_cases (problem_id, ord, kind, input, expected) VALUES
+  ((SELECT id FROM problems WHERE slug='two-sums'), 1, 'SAMPLE', '4 9
+2 7 11 15',           'YES'),
+  ((SELECT id FROM problems WHERE slug='two-sums'), 2, 'HIDDEN', '3 100
+1 2 3',               'NO'),
+  ((SELECT id FROM problems WHERE slug='two-sums'), 3, 'HIDDEN', '2 4
+2 2',                 'YES');
+
+INSERT INTO problems (slug, title, statement, constraints, difficulty, judge_mode, created_by, archived, published_at)
+VALUES ('bracket-balance', 'Bracket Balance',
+        'Read a string of brackets. Output YES if it is balanced, else NO.',
+        '1 <= |s| <= 10^5, characters are ()[]{}', 1300, 'EXACT',
+        (SELECT id FROM users WHERE username='setter02'), TRUE, NULL);
+
+INSERT INTO test_cases (problem_id, ord, kind, input, expected) VALUES
+  ((SELECT id FROM problems WHERE slug='bracket-balance'), 1, 'SAMPLE', '([]{})', 'YES'),
+  ((SELECT id FROM problems WHERE slug='bracket-balance'), 2, 'HIDDEN', '([)]',   'NO'),
+  ((SELECT id FROM problems WHERE slug='bracket-balance'), 3, 'HIDDEN', '{{}}',   'YES');
+
+-- Deliberately left with NO test cases: the creation page and the proposal queue both flag a
+-- problem that cannot be judged, and that warning deserves something to fire on.
+INSERT INTO problems (slug, title, statement, constraints, difficulty, judge_mode, created_by, archived, published_at)
+VALUES ('median-stream', 'Median Stream',
+        'Read n then n integers. After each, output the median of everything read so far.',
+        '1 <= n <= 10^5', 1600, 'TOKEN',
+        (SELECT id FROM users WHERE username='setter01'), TRUE, NULL);
+
+-- Every problem seeded unarchived is, by definition, publicly visible — so stamp it as published.
+-- Without this they would all read as drafts and be offered to contests, which is exactly what the
+-- eligibility rule exists to prevent. The archived drafts above are left NULL on purpose.
+UPDATE problems SET published_at = created_at WHERE archived = FALSE AND published_at IS NULL;
+
 -- A live contest with the 3 problems --------------------------------------
 INSERT INTO contests (title, starts_at, ends_at, freeze_min, scoring)
 VALUES ('Praetor Demo Round 1', now() - interval '10 minutes', now() + interval '2 hours', 15, 'ICPC');

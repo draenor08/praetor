@@ -14,6 +14,9 @@ public interface ContestProblemRepository extends JpaRepository<ContestProblem, 
     /** Problems of a contest in display order. Property path `id.contestId` through the @EmbeddedId. */
     List<ContestProblem> findByIdContestIdOrderByOrdAsc(Long contestId);
 
+    /** Labels are unique per contest; checked before insert so the clash reads as 409, not 500. */
+    boolean existsByIdContestIdAndLabel(Long contestId, String label);
+
     /**
      * The same slots, each carrying the slug and title its link needs. One join instead of a lookup
      * per slot; see {@link ContestProblemRow} for why it is native.
