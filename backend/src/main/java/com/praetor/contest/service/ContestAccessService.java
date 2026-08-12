@@ -1,7 +1,9 @@
 package com.praetor.contest.service;
 
+import com.praetor.contest.dto.EligibleProblemDto;
 import com.praetor.contest.repository.ContestAccessRepository;
 import com.praetor.identity.entity.User;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,5 +46,31 @@ public class ContestAccessService {
     /** Staff author and run the contests, so the embargo never applies to them. */
     public boolean isStaff(User user) {
         return user != null && !"USER".equals(user.getRole());
+    }
+
+    /**
+     * May a contest use this problem? Only a draft nobody has been able to read, that no other
+     * contest has claimed. Publication is one-way, so this never becomes true again once false.
+     */
+    @Transactional(readOnly = true)
+    public boolean isEligibleForContest(Long problemId) {
+        return accessRepo.isEligibleForContest(problemId);
+    }
+
+    /** Why not — for an error a setter can act on. */
+    @Transactional(readOnly = true)
+    public String ineligibleReason(Long problemId) {
+        String reason = accessRepo.ineligibleReason(problemId);
+        return reason == null ? "no such problem" : reason;
+    }
+
+    /** Draft problems a contest may still use. */
+    @Transactional(readOnly = true)
+    public List<EligibleProblemDto> eligiblePool() {
+        return accessRepo.findEligiblePool().stream()
+                .map(r -> new EligibleProblemDto(r.getProblemId(), r.getSlug(), r.getTitle(),
+                        r.getDifficulty(), r.getJudgeMode(), r.getAuthor(),
+                        r.getTestCases() == null ? 0L : r.getTestCases()))
+                .toList();
     }
 }

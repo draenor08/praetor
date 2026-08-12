@@ -11,5 +11,7 @@ public record ProblemRequest(
         String judgeMode,
         Double floatEps,
         String checkerCode,
-        String editorial) {
+        String editorial,
+        /** Create it as a draft: archived and unpublished, so a contest can still use it. */
+        Boolean draft) {
 }

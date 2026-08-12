@@ -43,8 +43,16 @@ CREATE TABLE problems (
     -- The escape hatch for problems that can no longer be hard-deleted (see below: the
     -- submissions/contest_problems FKs are RESTRICT, so a used problem cannot be dropped).
     archived      BOOLEAN      NOT NULL DEFAULT FALSE,
+    -- Stamped the FIRST time a problem becomes publicly visible (created unarchived, restored from
+    -- archive, or auto-published when its contest ends) and never cleared. A contest may only use a
+    -- problem nobody has been able to see, so this being NULL is what makes a problem eligible.
+    -- Re-archiving does not restore eligibility: the statement is already out.
+    published_at  TIMESTAMPTZ,
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
+
+-- Draft problems waiting to be used by a contest — the eligible pool.
+CREATE INDEX idx_problems_unpublished ON problems(id) WHERE published_at IS NULL;
 
 CREATE TABLE tags (
     id    BIGSERIAL PRIMARY KEY,
@@ -81,6 +89,9 @@ CREATE TABLE contests (
     freeze_min  INTEGER      NOT NULL DEFAULT 0,      -- freeze standings last N min (feat 18)
     scoring     VARCHAR(20)  NOT NULL DEFAULT 'ICPC'
                 CHECK (scoring IN ('ICPC','POINTS')),
+    -- When true, problem setters may propose problems for this contest (see below). The admin
+    -- still decides what goes in; this only opens the door.
+    calls_open  BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
     CHECK (ends_at > starts_at)
 );
@@ -93,6 +104,25 @@ CREATE TABLE contest_problems (
     PRIMARY KEY (contest_id, problem_id),
     UNIQUE (contest_id, label)
 );
+
+-- A setter offering one of their draft problems for a contest. The admin accepts (which is what
+-- writes the contest_problems row, with the label) or rejects. One offer per problem per contest;
+-- a rejected offer can be withdrawn and re-made by deleting the row.
+CREATE TABLE contest_problem_proposals (
+    id          BIGSERIAL PRIMARY KEY,
+    contest_id  BIGINT      NOT NULL REFERENCES contests(id) ON DELETE CASCADE,
+    problem_id  BIGINT      NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
+    proposed_by BIGINT      NOT NULL REFERENCES users(id),
+    status      VARCHAR(20) NOT NULL DEFAULT 'PROPOSED'
+                CHECK (status IN ('PROPOSED','ACCEPTED','REJECTED')),
+    note        TEXT,                                 -- setter's pitch, optional
+    decided_at  TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (contest_id, problem_id)
+);
+
+CREATE INDEX idx_proposals_contest ON contest_problem_proposals(contest_id, status);
+CREATE INDEX idx_proposals_setter  ON contest_problem_proposals(proposed_by, created_at DESC);
 
 CREATE TABLE registrations (
     contest_id   BIGINT NOT NULL REFERENCES contests(id) ON DELETE CASCADE,
