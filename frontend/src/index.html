@@ -4,6 +4,10 @@
     <meta charset="utf-8" />
     <title>Praetor</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The build injects <script src="main.js"> and friends as RELATIVE urls. Without a base href
+         they resolve against the current route, so a direct load of a nested route (/setter/problems)
+         asks for /setter/main.js, nginx answers with index.html, and the app never boots. -->
+    <base href="/" />
     <!-- sockjs-client references the Node `global` at module-eval time. ES imports hoist above any
          statement in main.ts, so the shim must run here, before any bundle JS loads. -->
     <script>window.global = window;</script>
