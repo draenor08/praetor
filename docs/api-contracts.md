@@ -41,8 +41,8 @@ Roles (canonical — match DB `users.role` CHECK + backend `User.role`): `USER` 
 ### Problems
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET  | `/api/problems` | **anonymous** | list of non-archived problems |
-| GET  | `/api/problems/{slug}` | **anonymous** | full statement; hidden testcases NOT returned, samples only |
+| GET  | `/api/problems` | **anonymous** | non-archived problems, **minus any under contest embargo** (staff see all) |
+| GET  | `/api/problems/{slug}` | **anonymous** | full statement; hidden testcases NOT returned, samples only. **`403` while embargoed** |
 | POST | `/api/problems` | SETTER or ADMIN | create (FR-12) → `201` problem object |
 | PUT  | `/api/problems/{slug}` | SETTER or ADMIN | update (FR-12) |
 | DELETE | `/api/problems/{slug}` | SETTER or ADMIN | `204`; **`409` when anything references it** — see below |
@@ -51,7 +51,28 @@ Roles (canonical — match DB `users.role` CHECK + backend `User.role`): `USER` 
 
 Both GET reads are served **anonymously** (`ProblemWebSecurityConfig`, `@Order(4)`) — the problem
 list and a statement are public. Every write falls through to the authenticated main chain, and the
-role is re-checked in `ProblemService`.
+role is re-checked in `ProblemService`. That chain also runs the **JWT filter**: it stays
+`permitAll`, but a token must still resolve to a principal, because the embargo below has to tell a
+registered participant from an anonymous reader. Without the filter `@AuthenticationPrincipal` is
+always `null` there and the rule cannot be evaluated at all.
+
+**Contest embargo — FROZEN.** A problem belonging to a contest that has **not ended** is withheld:
+absent from `GET /api/problems`, `403` on its statement, and `403` on submitting to it. It is
+visible to **staff** always, and to a **registered participant while the contest is running** —
+registration alone is not enough before the window opens. Once the contest ends the problem returns
+to normal public practice. The rule lives in `ContestAccessService` (contest module; problem and
+submission call in, never the reverse) and is enforced at all three points, because gating only one
+leaves the other two open — the public list filters embargoed rows **in SQL**, so such a row never
+leaves the database.
+
+**Draft / publication — FROZEN.** `problems.published_at` is stamped the **first** time a problem
+becomes publicly visible (created without `draft`, restored from archive, or released by the
+post-contest sweep) and is **never cleared**. `POST /api/problems` accepts `draft: true`, which
+creates it archived and unpublished. A contest may only use a problem whose `published_at` is null
+and which no contest has claimed, so **publication is one-way and a contest problem is effectively
+single-use**; `unarchive` is therefore a destructive action for eligibility, not a neutral toggle.
+`ContestProblemPublisher` (`@Scheduled`, problem module) unarchives and publishes the problems of
+contests that have ended, so a finished round leaves its problems in public practice.
 
 **Delete is only allowed while the problem is unused.** `test_cases` and `problem_tags` cascade, but
 `submissions`, `contest_problems` and `clarifications` are RESTRICT, so deleting a used problem
@@ -225,6 +246,11 @@ Exceeded →
 
 ## Submissions & Judging (`submission`) — FR-4–11, FR-10, FR-27
 
+> **Contest embargo applies to `POST /api/submissions` too** — `403` for a problem in a contest that
+> has not ended, unless the caller is staff or a registered participant of a running contest. Checked
+> **before** the rate-limit cooldown is spent, so a refusal costs the user nothing. Without this the
+> statement gate would be pointless: the slug would still be submittable.
+
 ### Submissions
 | Method | Path | Auth | Notes |
 |---|---|---|---|
@@ -272,11 +298,32 @@ Judging covers: sandboxed execution (FR-4), multi-language (FR-5), per-test-case
 ### Contest
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| POST | `/api/contests` | ADMIN | create; time window + problem set (FR-17) |
-| GET  | `/api/contests` | any | list (meta only: `id,title,startsAt,endsAt,scoring`) |
-| GET  | `/api/contests/{id}` | any | meta + problem labels |
+| POST | `/api/contests` | ADMIN | create; time window + problem set (FR-17). `problems` may be empty **only** with `callsOpen:true` |
+| GET  | `/api/contests` | any | list (meta only: `id,title,startsAt,endsAt,scoring,callsOpen`) |
+| GET  | `/api/contests/{id}` | any | meta + problem slots + `registered` + `problemsVisible` + `callsOpen` |
 | GET  | `/api/contests/{id}/standings` | any | snapshot; respects freeze (FR-18, FR-19, FR-21) |
 | POST | `/api/contests/{id}/register` | USER | `{virtual:false}` (FR-20) |
+| GET  | `/api/contests/eligible-problems` | staff | draft problems a contest may still use |
+| POST | `/api/contests/{id}/calls` | ADMIN | `{open:bool}` — open/close the contest to setter proposals |
+| POST | `/api/contests/{id}/proposals` | staff | `{problemId, note?}` → `201`; a setter offers a draft |
+| GET  | `/api/contests/{id}/proposals` | staff | the admin's review queue for this contest |
+| GET  | `/api/contests/my-proposals` | staff | everything the caller has offered, across contests |
+| POST | `/api/contests/{id}/proposals/{pid}/accept` | ADMIN | `{label}` — puts the problem in the contest |
+| POST | `/api/contests/{id}/proposals/{pid}/reject` | ADMIN | problem stays a draft, free for another contest |
+
+**Contest detail payload — FROZEN.** Problem slots always carry `label` and `ord`, because the
+standings board needs its columns even for a spectator, but `slug` and `title` are **`null` while
+the embargo applies** — withheld server-side, so a hidden statement is not reachable from the page's
+own payload. `problemsVisible` says which of the two shapes you got; `registered` is `false` for an
+anonymous reader.
+
+**Problem sourcing — FROZEN.** A contest is built from the eligible pool (drafts, never published,
+unclaimed) or by opening a **call for problems**: setters propose, and the **admin decides**.
+Accepting is what writes the `contest_problems` row, under a label the admin supplies — labels are
+unique per contest (`409` on a clash). Eligibility is re-checked **at accept time as well as at
+propose time**, since a draft can be published or claimed in between; letting an already-readable
+statement into a contest is the one thing the rule exists to prevent. Rejecting records the
+decision and leaves the problem a draft.
 
 Standings use ICPC-style scoring with penalty (FR-19) and freeze the last N minutes (FR-21).
 
@@ -314,4 +361,6 @@ Standings use ICPC-style scoring with penalty (FR-19) and freeze the last N minu
 - Cross-module **service** calls go one way only: `identity` (rating) may read `contest` (standings); `contest` must not depend on `identity`'s rating. Never HTTP between in-process modules.
 - All write endpoints validate role server-side (don't trust the frontend). The Angular `roleGuard` only hides UI.
 - Each module owns a package-scoped `@RestControllerAdvice` at `HIGHEST_PRECEDENCE` that maps `ResponseStatusException` → `{error,status}`. Without it, identity's broad `RuntimeException → 400` advice swallows the real status (a 404 became a 400). Keep that advice per module rather than editing the shared one.
-- Anonymous-readable paths are declared in per-module `SecurityFilterChain` beans with explicit `@Order`s: `ws` (1), `contest` reads (2), `identity` rating reads (3), `problem` reads (4), then the authenticated main chain. A management endpoint must **not** live under a prefix whose GETs are anonymous — it would arrive with no `Authentication` to check.
+- Anonymous-readable paths are declared in per-module `SecurityFilterChain` beans with explicit `@Order`s: `ws` (1), `contest` reads (2), `identity` rating reads (3), `problem` reads (4), then the authenticated main chain. A management endpoint must **not** live under a prefix whose GETs are anonymous — it would arrive with no `Authentication` to check. A `permitAll` chain that needs to know *who* is calling must still `addFilterBefore` the JWT filter (optional auth), or `@AuthenticationPrincipal` is always `null` there.
+- A rule enforced in more than one place is defined **once** and called from each (`ContestAccessService` for the contest embargo and problem eligibility). Two copies of a security rule drift, and the copy that drifts is the one nobody tested.
+- Reading back rows you just wrote with a **native** query needs an explicit flush (`saveAllAndFlush`) — Hibernate does not flush for native queries, so the read returns nothing.
