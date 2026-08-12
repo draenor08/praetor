@@ -17,6 +17,7 @@ public record ContestResponse(
         int freezeMin,
         String scoring,
         boolean registered,
+        boolean callsOpen,
         boolean problemsVisible,
         List<ContestProblemSlot> problems) {
 }
