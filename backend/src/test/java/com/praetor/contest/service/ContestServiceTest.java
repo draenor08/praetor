@@ -14,6 +14,7 @@ import com.praetor.contest.dto.CreateContestRequest;
 import com.praetor.contest.dto.RegisterRequest;
 import com.praetor.contest.entity.Contest;
 import com.praetor.contest.repository.ContestProblemRepository;
+import com.praetor.contest.repository.ContestProblemRow;
 import com.praetor.contest.repository.ContestRepository;
 import com.praetor.contest.repository.RegistrationRepository;
 import com.praetor.identity.entity.User;
@@ -37,11 +38,15 @@ class ContestServiceTest {
     private final RegistrationRepository registrationRepo =
             mock(RegistrationRepository.class);
 
+    private final ContestAccessService contestAccess =
+            mock(ContestAccessService.class);
+
     private final ContestService service =
             new ContestService(
                     contestRepo,
                     contestProblemRepo,
-                    registrationRepo);
+                    registrationRepo,
+                    contestAccess);
 
     private final ZonedDateTime start =
             ZonedDateTime.now();
@@ -120,8 +125,9 @@ class ContestServiceTest {
         verify(contestRepo)
                 .save(any(Contest.class));
 
+        // flushed, not just saved — toResponse reads the slots back with a native query
         verify(contestProblemRepo)
-                .saveAll(any());
+                .saveAllAndFlush(any());
     }
 
     @Test
@@ -335,6 +341,110 @@ class ContestServiceTest {
 
         verify(registrationRepo, never())
                 .save(any());
+    }
+
+    // ---- contest page: registration flag + the embargo on problem identity ----
+
+    private ContestProblemRow row(String label, int ord, long problemId) {
+
+        ContestProblemRow r =
+                mock(ContestProblemRow.class);
+
+        when(r.getLabel()).thenReturn(label);
+        when(r.getOrd()).thenReturn(ord);
+        when(r.getProblemId()).thenReturn(problemId);
+        when(r.getSlug()).thenReturn("a-plus-b");
+        when(r.getTitle()).thenReturn("A + B");
+
+        return r;
+    }
+
+    private void contestWithOneProblem() {
+
+        Contest c =
+                new Contest(
+                        "Round",
+                        start,
+                        end,
+                        15,
+                        "ICPC");
+
+        // Built on its own line: constructing a stubbed mock inside thenReturn(...) trips Mockito's
+        // unfinished-stubbing detector.
+        ContestProblemRow slot =
+                row("A ", 1, 100L);
+
+        when(contestRepo.findById(5L))
+                .thenReturn(java.util.Optional.of(c));
+
+        // any(): the Contest here is never persisted, so getId() is null when toResponse reads back
+        when(contestProblemRepo.findRowsByContestId(any()))
+                .thenReturn(List.of(slot));
+    }
+
+    @Test
+    void get_registeredParticipant_seesSlugsAndIsMarkedRegistered() {
+
+        contestWithOneProblem();
+
+        when(registrationRepo.existsById(any()))
+                .thenReturn(true);
+
+        when(contestAccess.mayAccessProblem(anyLong(), any()))
+                .thenReturn(true);
+
+        var res =
+                service.get(
+                        5L,
+                        user(7L, "USER"));
+
+        assertThat(res.registered()).isTrue();
+        assertThat(res.problemsVisible()).isTrue();
+        assertThat(res.problems()).hasSize(1);
+        assertThat(res.problems().get(0).slug()).isEqualTo("a-plus-b");
+        // CHAR(2) pads the label — trimmed here or the link renders "A " with a gap
+        assertThat(res.problems().get(0).label()).isEqualTo("A");
+    }
+
+    @Test
+    void get_embargoed_keepsLabelsButWithholdsSlugAndTitle() {
+
+        contestWithOneProblem();
+
+        when(registrationRepo.existsById(any()))
+                .thenReturn(false);
+
+        when(contestAccess.mayAccessProblem(anyLong(), any()))
+                .thenReturn(false);
+
+        var res =
+                service.get(
+                        5L,
+                        user(7L, "USER"));
+
+        assertThat(res.registered()).isFalse();
+        assertThat(res.problemsVisible()).isFalse();
+        // the standings board still needs its columns, so the label survives
+        assertThat(res.problems().get(0).label()).isEqualTo("A");
+        assertThat(res.problems().get(0).slug()).isNull();
+        assertThat(res.problems().get(0).title()).isNull();
+    }
+
+    @Test
+    void get_anonymousReader_isNeverRegistered() {
+
+        contestWithOneProblem();
+
+        when(contestAccess.mayAccessProblem(anyLong(), any()))
+                .thenReturn(false);
+
+        var res =
+                service.get(5L, null);
+
+        assertThat(res.registered()).isFalse();
+        // no registration lookup is possible without a caller
+        verify(registrationRepo, never())
+                .existsById(any());
     }
 
     // Rating a finished contest moved to identity's ContestRatingScheduler — covered by

@@ -45,10 +45,13 @@ public class ContestController {
         return service.list();
     }
 
-    /** Contest meta + problem labels. Public (see ContestWebSecurityConfig). */
+    /**
+     * Contest meta + problem slots. Public (see ContestWebSecurityConfig) — the JWT is optional
+     * there, so {@code user} is null for an anonymous spectator, who gets labels without slugs.
+     */
     @GetMapping("/{id}")
-    public ContestResponse get(@PathVariable Long id) {
-        return service.get(id);
+    public ContestResponse get(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        return service.get(id, user);
     }
 
     /** Register the caller for a contest (USER). */

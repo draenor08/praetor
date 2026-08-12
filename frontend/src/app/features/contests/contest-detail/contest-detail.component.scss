@@ -78,3 +78,57 @@
   letter-spacing: 0.03em;
   margin-bottom: 0.5rem;
 }
+
+.badge-registered {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background-color: rgba(16, 185, 129, 0.12);
+  border: 1px solid var(--success-color);
+  color: var(--success-color);
+}
+
+/* ---- Problem set ---- */
+.problem-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+}
+
+.problem-table td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.problem-table .col-label {
+  width: 3.5rem;
+}
+
+.problem-table a {
+  color: var(--text-color);
+  text-decoration: none;
+}
+
+.problem-table a:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+/* Shown instead of the problem list while the contest embargo applies. */
+.locked-panel {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  background-color: var(--surface-color);
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.locked-reason {
+  margin: 0 0 0.75rem;
+  color: var(--text-soft);
+}
+
+.locked-labels {
+  margin: 0 0 1rem;
+}

@@ -5,7 +5,8 @@
   <div class="detail-head">
     <h1 class="page-title">{{ c.title }}</h1>
     <span class="tag">{{ c.scoring }}</span>
-    <button class="btn-primary register-btn" (click)="register()" [disabled]="registering">
+    <span *ngIf="c.registered" class="badge badge-registered">Registered</span>
+    <button *ngIf="canRegister" class="btn-primary register-btn" (click)="register()" [disabled]="registering">
       {{ registering ? 'Registering…' : 'Register' }}
     </button>
   </div>
@@ -15,18 +16,34 @@
     <div><dt>Starts</dt><dd class="num">{{ c.startsAt | date:'MMM d, HH:mm' }}</dd></div>
     <div><dt>Ends</dt><dd class="num">{{ c.endsAt | date:'MMM d, HH:mm' }}</dd></div>
     <div *ngIf="c.freezeMin > 0"><dt>Freeze</dt><dd class="num">last {{ c.freezeMin }} min</dd></div>
-    <div>
-      <dt>Problems</dt>
-      <dd>
-        <span class="tag prob" *ngFor="let p of c.problems">{{ p.label }}</span>
-      </dd>
-    </div>
   </dl>
 
+  <h3 class="results-title">Problems</h3>
+
+  <!-- Open: every slot links to its statement. -->
+  <table *ngIf="c.problemsVisible" class="problem-table">
+    <tbody>
+      <tr *ngFor="let p of c.problems">
+        <td class="col-label"><span class="tag prob">{{ p.label }}</span></td>
+        <td><a [routerLink]="['/problems', p.slug]">{{ p.title }}</a></td>
+      </tr>
+      <tr *ngIf="c.problems.length === 0">
+        <td colspan="2" class="muted">This contest has no problems yet.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Withheld: the labels exist (the board uses them) but there is nothing to open yet. -->
+  <div *ngIf="!c.problemsVisible" class="locked-panel">
+    <p class="locked-reason">{{ lockReason }}</p>
+    <p class="locked-labels">
+      <span class="tag prob" *ngFor="let p of c.problems">{{ p.label }}</span>
+    </p>
+    <button *ngIf="canRegister" class="btn-primary" (click)="register()" [disabled]="registering">
+      {{ registering ? 'Registering…' : 'Register' }}
+    </button>
+  </div>
+
   <h3 class="results-title">Standings</h3>
-  <app-standings-board
-    [standings]="standings"
-    [problems]="c.problems"
-    [myHandle]="myHandle">
-  </app-standings-board>
+  <app-standings-live [contestId]="contestId" [problems]="c.problems"></app-standings-live>
 </div>

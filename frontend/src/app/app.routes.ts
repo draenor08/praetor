@@ -8,6 +8,8 @@ import { ProblemDetailComponent } from './features/problems/problem-detail/probl
 import { SubmissionDetailComponent } from './features/submissions/submission-detail/submission-detail.component';
 import { ContestListComponent } from './features/contests/contest-list/contest-list.component';
 import { ContestDetailComponent } from './features/contests/contest-detail/contest-detail.component';
+import { StandingsListComponent } from './features/contests/standings-list/standings-list.component';
+import { ContestStandingsComponent } from './features/contests/contest-standings/contest-standings.component';
 import { AboutComponent } from './features/about/about.component';
 import { NotFoundComponent } from './features/not-found/not-found.component';
 import { authGuard } from './core/guards/auth.guard';
@@ -39,8 +41,10 @@ export const routes: Routes = [
       { path: 'submissions/:id', component: SubmissionDetailComponent },
       { path: 'contests', component: ContestListComponent },
       { path: 'contests/:id', component: ContestDetailComponent },
-      // Standings are per-contest → live inside a contest's detail page.
-      { path: 'standings', redirectTo: 'contests', pathMatch: 'full' },
+      // Standings are per-contest, so the section lists contests and each opens its own board.
+      // The contest page carries the same board inline; both share StandingsLiveComponent.
+      { path: 'standings', component: StandingsListComponent },
+      { path: 'standings/:id', component: ContestStandingsComponent },
       { path: 'submissions', component: ComingSoonComponent, data: { title: 'Submissions' } },
       { path: 'leaderboard', component: LeaderboardComponent },
       { path: 'profile', component: ProfileComponent },

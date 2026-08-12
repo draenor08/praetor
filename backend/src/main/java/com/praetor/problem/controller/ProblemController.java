@@ -36,16 +36,25 @@ public class ProblemController {
         this.problemService = problemService;
     }
 
+    /**
+     * The problem list. Public (see {@link com.praetor.problem.config.ProblemWebSecurityConfig}) —
+     * the JWT is optional there, so {@code user} is null for an anonymous reader and the contest
+     * embargo applies.
+     */
     @GetMapping
-    public List<ProblemSummary> list() {
-        return readService.list();
+    public List<ProblemSummary> list(
+            @AuthenticationPrincipal User user) {
+
+        return readService.list(user);
     }
 
+    /** One problem's statement. Public, but embargoed problems are refused — see the read service. */
     @GetMapping("/{slug}")
     public ProblemDetail get(
-            @PathVariable String slug) {
+            @PathVariable String slug,
+            @AuthenticationPrincipal User user) {
 
-        return readService.get(slug);
+        return readService.get(slug, user);
     }
 
     @PostMapping

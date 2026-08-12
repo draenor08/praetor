@@ -1,41 +1,33 @@
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
-import { WsService } from '../../../core/services/ws.service';
 import { TokenService } from '../../../core/services/token.service';
 import { ContestDetail } from '../../../core/models/contest.model';
-import { Standings } from '../../../core/models/standings.model';
-import { StandingsBoardComponent } from '../standings-board/standings-board.component';
+import { StandingsLiveComponent } from '../standings-live/standings-live.component';
 
 /**
- * Contest page: meta + problems + register + the live ICPC standings board.
+ * Contest page: meta, the problem set, registration, and the live ICPC standings board.
  *
- * <p>Live standings use two channels. Everyone subscribes the broadcast topic (frozen board during a
- * freeze, live otherwise). Privileged viewers (ADMIN/PROBLEM_SETTER) ALSO subscribe the per-user
- * queue, which carries the live board during a freeze. Merge rule: a privileged viewer renders every
- * user-queue frame and IGNORES a frozen topic frame (its live version arrives on the queue);
- * everyone else renders every topic frame. The initial board comes from the role-aware GET snapshot.
+ * <p>The problem set is only listed once the caller may actually open the statements — staff always,
+ * a registered participant while the contest runs, anyone at all once it has ended. Until then the
+ * backend withholds each slot's slug and title and this page shows a register prompt instead. The
+ * gate is enforced server-side; this is the same rule stated in the UI, not the rule itself.
  */
 @Component({
   selector: 'app-contest-detail',
   standalone: true,
-  imports: [CommonModule, StandingsBoardComponent],
+  imports: [CommonModule, RouterModule, StandingsLiveComponent],
   templateUrl: './contest-detail.component.html',
   styleUrls: ['./contest-detail.component.scss']
 })
-export class ContestDetailComponent implements OnInit, OnDestroy {
+export class ContestDetailComponent implements OnInit {
   private api = inject(ApiService);
-  private ws = inject(WsService);
   private tokenService = inject(TokenService);
   private route = inject(ActivatedRoute);
 
-  private id!: number;
-  private subs: Subscription[] = [];
-
+  contestId!: number;
   contest?: ContestDetail;
-  standings?: Standings;
   loading = true;
   error = '';
 
@@ -47,14 +39,67 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
     return !!role && role !== 'USER';
   }
 
-  get myHandle(): string | null {
-    return this.tokenService.getUser()?.username ?? null;
+  /** Has the contest finished? Ended contests are open to everyone, registered or not. */
+  get ended(): boolean {
+    return !!this.contest && Date.now() > Date.parse(this.contest.endsAt);
+  }
+
+  /** Has it started? Registering early buys no head start, so the prompt says so. */
+  get started(): boolean {
+    return !!this.contest && Date.now() >= Date.parse(this.contest.startsAt);
+  }
+
+  /** Registration is only worth offering to a contestant on a contest that has not ended. */
+  get canRegister(): boolean {
+    return !!this.contest && !this.contest.registered && !this.ended && !this.isPrivileged;
+  }
+
+  /** Why the problems are withheld — shown in the prompt so the state is not a mystery. */
+  get lockReason(): string {
+    if (!this.contest) {
+      return '';
+    }
+    if (!this.tokenService.getUser()) {
+      return 'Log in and register to see this contest’s problems.';
+    }
+    if (this.contest.registered && !this.started) {
+      return 'You are registered. The problems appear when the contest starts.';
+    }
+    return 'Register to see this contest’s problems while it runs. They open to everyone once it ends.';
   }
 
   ngOnInit(): void {
-    this.id = Number(this.route.snapshot.paramMap.get('id'));
+    this.contestId = Number(this.route.snapshot.paramMap.get('id'));
 
-    this.api.getContest(this.id).subscribe({
+    this.load();
+  }
+
+  register(): void {
+    if (this.registering) {
+      return;
+    }
+    this.registering = true;
+    this.registerMsg = '';
+    this.api.registerForContest(this.contestId).subscribe({
+      next: () => {
+        this.registering = false;
+        this.registerMsg = 'Registered ✓';
+        // Re-fetch rather than flip the flag locally: whether the problems are now visible is the
+        // backend's call (a contest that has not started yet still withholds them).
+        this.load();
+      },
+      error: (err) => {
+        this.registering = false;
+        this.registerMsg = err?.status === 409 ? 'Already registered' : 'Registration failed';
+        if (err?.status === 409) {
+          this.load();
+        }
+      }
+    });
+  }
+
+  private load(): void {
+    this.api.getContest(this.contestId).subscribe({
       next: (c) => {
         this.contest = c;
         this.loading = false;
@@ -64,46 +109,5 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
         this.loading = false;
       }
     });
-
-    // Initial board (role-aware on the backend) + live updates.
-    this.api.getStandings(this.id).subscribe({ next: (s) => (this.standings = s) });
-
-    this.subs.push(
-      this.ws.standings$(this.id).subscribe((board: Standings) => {
-        // Privileged viewers get the live board on the user queue; skip the frozen topic frame.
-        if (this.isPrivileged && board.frozen) {
-          return;
-        }
-        this.standings = board;
-      })
-    );
-
-    if (this.isPrivileged) {
-      this.subs.push(
-        this.ws.liveStandings$(this.id).subscribe((board: Standings) => (this.standings = board))
-      );
-    }
-  }
-
-  register(): void {
-    if (this.registering) {
-      return;
-    }
-    this.registering = true;
-    this.registerMsg = '';
-    this.api.registerForContest(this.id).subscribe({
-      next: () => {
-        this.registering = false;
-        this.registerMsg = 'Registered ✓';
-      },
-      error: (err) => {
-        this.registering = false;
-        this.registerMsg = err?.status === 409 ? 'Already registered' : 'Registration failed';
-      }
-    });
-  }
-
-  ngOnDestroy(): void {
-    this.subs.forEach((s) => s.unsubscribe());
   }
 }

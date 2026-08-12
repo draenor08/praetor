@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -11,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.praetor.contest.service.ContestAccessService;
 import com.praetor.identity.entity.User;
 import com.praetor.identity.repository.UserRepository;
 import com.praetor.submission.SubmissionStatus;
@@ -27,6 +29,7 @@ import com.praetor.submission.repository.SubmissionRepository;
 import com.praetor.submission.repository.SubmissionResultRepository;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.server.ResponseStatusException;
@@ -49,12 +52,24 @@ class SubmissionServiceTest {
     private final PlatformTransactionManager txManager = mock(PlatformTransactionManager.class);
     private final SubmissionRateLimiter rateLimiter = mock(SubmissionRateLimiter.class);
 
+    private final ContestAccessService contestAccess = mock(ContestAccessService.class);
+
     private final SubmissionService service =
             new SubmissionService(subRepo, resultRepo, problemRepo, userRepo, judgeService,
-                    rateLimiter, txManager);
+                    rateLimiter, contestAccess, txManager);
 
     private static final long SUB_ID = 42L;
     private static final long OWNER_ID = 7L;
+
+    /**
+     * Default the embargo open, so the tests that predate it read the same as before; the two
+     * embargo tests stub it shut for themselves. A mock would otherwise answer false and 403 every
+     * create.
+     */
+    @BeforeEach
+    void embargoOpenByDefault() {
+        when(contestAccess.mayAccessProblem(anyLong(), any())).thenReturn(true);
+    }
 
     private User owner() {
         User u = new User();
@@ -226,6 +241,24 @@ class SubmissionServiceTest {
                 new SubmitRequest("a-plus-b", null, "CPP", "int main(){}"), owner()))
                 .isInstanceOf(SubmissionRateLimitedException.class);
 
+        verify(subRepo, never()).save(any());
+        verify(judgeService, never()).enqueue(anyLong());
+    }
+
+    @Test
+    void create_embargoedProblem_403_andDoesNotSpendTheCooldown() {
+        JudgeProblem problem = mock(JudgeProblem.class);
+        when(problem.getId()).thenReturn(7L);
+        when(problemRepo.findBySlug("a-plus-b")).thenReturn(Optional.of(problem));
+        when(contestAccess.mayAccessProblem(eq(7L), any())).thenReturn(false);
+
+        assertThatThrownBy(() -> service.create(
+                new SubmitRequest("a-plus-b", null, "CPP", "int main(){}"), owner()))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("403");
+
+        // refused before the cooldown, like the 404 above — a wall costs nothing
+        verifyNoInteractions(rateLimiter);
         verify(subRepo, never()).save(any());
         verify(judgeService, never()).enqueue(anyLong());
     }
