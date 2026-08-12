@@ -2,6 +2,7 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
+import { TokenService } from '../../../core/services/token.service';
 import { ContestSummary } from '../../../core/models/contest.model';
 
 @Component({
@@ -13,6 +14,17 @@ import { ContestSummary } from '../../../core/models/contest.model';
 })
 export class ContestListComponent implements OnInit {
   private api = inject(ApiService);
+  private tokenService = inject(TokenService);
+
+  get isAdmin(): boolean {
+    return this.tokenService.getUser()?.role === 'ADMIN';
+  }
+
+  /** Staff see which contests are collecting problems; contestants have no use for it. */
+  get isStaff(): boolean {
+    const role = this.tokenService.getUser()?.role;
+    return !!role && role !== 'USER';
+  }
 
   contests: ContestSummary[] = [];
   loading = true;

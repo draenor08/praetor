@@ -28,6 +28,8 @@ export class ProblemManageComponent implements OnInit {
 
   /** Slug whose delete is awaiting confirmation — deleting is irreversible. */
   pendingDelete: string | null = null;
+  /** Slug awaiting confirmation that publishing it (Restore) is intended. */
+  pendingRestore: string | null = null;
   busySlug: string | null = null;
 
   ngOnInit(): void {
@@ -79,6 +81,13 @@ export class ProblemManageComponent implements OnInit {
   }
 
   toggleArchived(problem: ManagedProblem): void {
+    // Restoring publishes the statement, and publication is one-way: the problem can never go into
+    // a contest afterwards. Worth a confirm, since the button itself looks reversible.
+    if (problem.archived && this.pendingRestore !== problem.slug) {
+      this.pendingRestore = problem.slug;
+      return;
+    }
+    this.pendingRestore = null;
     this.busySlug = problem.slug;
     this.error = '';
     this.api.setProblemArchived(problem.slug, !problem.archived).subscribe({

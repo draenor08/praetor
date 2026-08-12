@@ -1,0 +1,184 @@
+.page-title {
+  margin: 0;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--primary-color);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.contest-name {
+  color: var(--text-soft);
+}
+
+.toggle {
+  margin-left: auto;
+}
+
+.closed-note {
+  padding: 0.75rem 1rem;
+  background-color: var(--surface-color);
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.notice-message {
+  color: var(--success-color);
+  font-size: 0.9rem;
+}
+
+.section-title {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 1.75rem 0 0.5rem;
+}
+
+.empty {
+  padding: 1rem 0;
+}
+
+.proposal-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.proposal-table th,
+.proposal-table td {
+  text-align: left;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.proposal-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.proposal-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.col-num { width: 4.5rem; }
+.col-mode { width: 6rem; }
+.col-status { width: 8rem; }
+.col-actions { width: 16rem; }
+
+.slug {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: ui-monospace, monospace;
+}
+
+.note {
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.zero-tests {
+  color: var(--error-color);
+  font-weight: 600;
+}
+
+.decide {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.label-input {
+  width: 3rem;
+  padding: 0.3rem 0.4rem;
+  text-align: center;
+  text-transform: uppercase;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  color: var(--text-color);
+  font: inherit;
+}
+
+.label-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.tag {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 5px;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+}
+
+.btn-small {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.btn-small:hover:not(:disabled) {
+  border-color: var(--primary-color);
+}
+
+.btn-small:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-danger {
+  color: var(--error-color);
+}
+
+.btn-danger:hover:not(:disabled) {
+  border-color: var(--error-color);
+}
+
+.status-pill {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 20px;
+}
+.status-ACCEPTED { color: var(--success-color); background: rgba(16, 185, 129, 0.12); }
+.status-REJECTED { color: var(--text-muted); background: rgba(148, 163, 184, 0.12); }
+.status-PROPOSED { color: var(--primary-color); background: rgba(99, 102, 241, 0.15); }

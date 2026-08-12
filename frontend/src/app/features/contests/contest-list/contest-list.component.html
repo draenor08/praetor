@@ -1,4 +1,7 @@
-<h1 class="page-title">Contests</h1>
+<div class="list-head">
+  <h1 class="page-title">Contests</h1>
+  <a *ngIf="isAdmin" routerLink="/contests/new" class="btn-primary">New contest</a>
+</div>
 
 <p *ngIf="loading" class="muted">Loading…</p>
 <p *ngIf="error" class="error-message">{{ error }}</p>
@@ -15,7 +18,10 @@
   </thead>
   <tbody>
     <tr *ngFor="let c of contests">
-      <td><a [routerLink]="['/contests', c.id]">{{ c.title }}</a></td>
+      <td>
+        <a [routerLink]="['/contests', c.id]">{{ c.title }}</a>
+        <span *ngIf="c.callsOpen && isStaff" class="badge-calls">accepting problems</span>
+      </td>
       <td class="col-status">
         <span class="status-pill status-{{ status(c) }}">{{ status(c) }}</span>
       </td>

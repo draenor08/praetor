@@ -9,6 +9,9 @@ import { SubmissionDetailComponent } from './features/submissions/submission-det
 import { ContestListComponent } from './features/contests/contest-list/contest-list.component';
 import { ContestDetailComponent } from './features/contests/contest-detail/contest-detail.component';
 import { StandingsListComponent } from './features/contests/standings-list/standings-list.component';
+import { ContestCreateComponent } from './features/contests/contest-create/contest-create.component';
+import { ContestProposalsComponent } from './features/contests/contest-proposals/contest-proposals.component';
+import { ContestCallsComponent } from './features/setter/contest-calls/contest-calls.component';
 import { ContestStandingsComponent } from './features/contests/contest-standings/contest-standings.component';
 import { AboutComponent } from './features/about/about.component';
 import { NotFoundComponent } from './features/not-found/not-found.component';
@@ -40,6 +43,19 @@ export const routes: Routes = [
       { path: 'problems/:slug', component: ProblemDetailComponent },
       { path: 'submissions/:id', component: SubmissionDetailComponent },
       { path: 'contests', component: ContestListComponent },
+      // Authoring routes must precede 'contests/:id', or 'new' is read as an id.
+      {
+        path: 'contests/new',
+        component: ContestCreateComponent,
+        canActivate: [roleGuard],
+        data: { roles: ['ADMIN'] }
+      },
+      {
+        path: 'contests/:id/proposals',
+        component: ContestProposalsComponent,
+        canActivate: [roleGuard],
+        data: { roles: STAFF_ROLES }
+      },
       { path: 'contests/:id', component: ContestDetailComponent },
       // Standings are per-contest, so the section lists contests and each opens its own board.
       // The contest page carries the same board inline; both share StandingsLiveComponent.
@@ -51,6 +67,12 @@ export const routes: Routes = [
 
       // Setter workspace. roleGuard keeps contestants out of the UI; every endpoint behind it
       // re-checks the role server-side, so the guard is convenience, not the security boundary.
+      {
+        path: 'setter/calls',
+        component: ContestCallsComponent,
+        canActivate: [roleGuard],
+        data: { roles: STAFF_ROLES }
+      },
       {
         path: 'setter/problems',
         component: ProblemManageComponent,

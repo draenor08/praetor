@@ -5,6 +5,8 @@ export interface ContestSummary {
   startsAt: string;
   endsAt: string;
   scoring: string;
+  /** Setters may currently propose problems for this contest. */
+  callsOpen: boolean;
 }
 
 /**
@@ -30,7 +32,54 @@ export interface ContestDetail {
   scoring: string;
   /** Is the caller signed up for this contest (false when nobody is logged in). */
   registered: boolean;
+  /** Setters may currently propose problems for this contest. */
+  callsOpen: boolean;
   /** Do the slots carry slug + title, i.e. may the caller open the statements yet. */
   problemsVisible: boolean;
   problems: ContestProblem[];
+}
+
+/** A draft problem a contest may still use. */
+export interface EligibleProblem {
+  problemId: number;
+  slug: string;
+  title: string;
+  difficulty: number;
+  judgeMode: string;
+  author: string;
+  testCases: number;
+}
+
+/** A setter's offer of a problem for a contest. */
+export interface Proposal {
+  id: number;
+  contestId: number | null;
+  problemId: number;
+  slug: string;
+  title: string;
+  difficulty: number;
+  judgeMode: string;
+  proposedBy: string;
+  status: 'PROPOSED' | 'ACCEPTED' | 'REJECTED';
+  note: string | null;
+  testCases: number;
+  createdAt: string;
+}
+
+/** One slot in a create-contest request. */
+export interface ContestProblemSpec {
+  problemId: number;
+  label: string;
+  ord: number;
+}
+
+/** POST /api/contests body. `problems` may be empty when `callsOpen` is true. */
+export interface CreateContestRequest {
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  freezeMin: number;
+  scoring: string;
+  problems: ContestProblemSpec[];
+  callsOpen: boolean;
 }

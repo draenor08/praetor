@@ -112,6 +112,19 @@
     <textarea id="editorial" name="editorial" rows="6" [(ngModel)]="form.editorial"></textarea>
   </div>
 
+  <!-- Only on create: publication is one-way, so this cannot be undone from the editor later. -->
+  <div class="field draft-field" *ngIf="!editing">
+    <label class="checkbox-label">
+      <input type="checkbox" name="draft" [(ngModel)]="form.draft" />
+      Save as a draft, for a contest
+    </label>
+    <span class="hint">
+      A draft stays hidden from the problem list. Only a draft can be put into a contest — once a
+      problem has been publicly visible it can never be used by one, and restoring it from the
+      archive counts as being visible. Its problems return to public practice when the contest ends.
+    </span>
+  </div>
+
   <p *ngIf="saveError" class="error-message">{{ saveError }}</p>
 
   <div class="form-actions">

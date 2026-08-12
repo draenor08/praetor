@@ -132,3 +132,13 @@
 .locked-labels {
   margin: 0 0 1rem;
 }
+
+.proposals-link {
+  font-size: 0.85rem;
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.proposals-link:hover {
+  text-decoration: underline;
+}

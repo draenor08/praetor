@@ -64,3 +64,27 @@
 .status-Running { color: #58c17a; background: rgba(88, 193, 122, 0.12); }
 .status-Upcoming { color: var(--primary-color); background: rgba(99, 102, 241, 0.15); }
 .status-Ended { color: var(--text-muted); background: rgba(148, 163, 184, 0.12); }
+
+.list-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.list-head .page-title {
+  margin: 0;
+}
+
+.list-head .btn-primary {
+  margin-left: auto;
+}
+
+.badge-calls {
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--primary-color);
+}

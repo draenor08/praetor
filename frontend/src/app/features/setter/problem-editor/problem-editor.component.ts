@@ -47,7 +47,8 @@ export class ProblemEditorComponent implements OnInit {
     judgeMode: 'EXACT',
     floatEps: null,
     checkerCode: '',
-    editorial: ''
+    editorial: '',
+    draft: false
   };
 
   loading = false;
@@ -176,7 +177,10 @@ export class ProblemEditorComponent implements OnInit {
       constraints: this.form.constraints?.trim() ? this.form.constraints : null,
       editorial: this.form.editorial?.trim() ? this.form.editorial : null,
       floatEps: this.form.judgeMode === 'FLOAT' ? Number(this.form.floatEps) : null,
-      checkerCode: this.form.judgeMode === 'SPECIAL' ? this.form.checkerCode : null
+      checkerCode: this.form.judgeMode === 'SPECIAL' ? this.form.checkerCode : null,
+      // Only meaningful at creation: publication is one-way, so an existing problem's draft
+      // status is never changed from here.
+      draft: this.editing ? null : this.form.draft
     };
 
     const request = this.editing
