@@ -86,8 +86,7 @@
         <option *ngFor="let mode of judgeModes" [value]="mode">{{ mode }}</option>
       </select>
       <span class="hint">
-        EXACT: byte-for-byte · TOKEN: ignores whitespace · FLOAT: numeric tolerance ·
-        SPECIAL: your own checker
+        EXACT: byte-for-byte · TOKEN: ignores whitespace · FLOAT: numeric tolerance
       </span>
     </div>
 
@@ -100,12 +99,6 @@
     </div>
   </div>
 
-  <div class="field" *ngIf="form.judgeMode === 'SPECIAL'">
-    <label for="checkerCode">Checker code</label>
-    <textarea id="checkerCode" name="checkerCode" rows="10" class="code"
-              [(ngModel)]="form.checkerCode" [disabled]="judgingLocked"></textarea>
-    <span class="field-error" *ngIf="errors['checkerCode']">{{ errors['checkerCode'] }}</span>
-  </div>
 
   <div class="field">
     <label for="editorial">Editorial <span class="hint-inline">optional, markdown</span></label>

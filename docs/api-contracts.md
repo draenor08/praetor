@@ -117,9 +117,16 @@ public list and keeps every submission, standing and rating intact.
 **Validation** (`POST`/`PUT`, all `400`): slug required, lowercased/trimmed, must match
 `^[a-z0-9]+(?:-[a-z0-9]+)*$`, ≤80 chars · title required, ≤200 · statement required ·
 `difficulty` 0–4000 (default 800) · `timeLimitMs` ≥1 (default 1000) · `memLimitKb` ≥1
-(default 262144) · `judgeMode` ∈ `EXACT|TOKEN|FLOAT|SPECIAL` (default `EXACT`) ·
-`FLOAT` requires `floatEps > 0` · `SPECIAL` requires non-blank `checkerCode`.
+(default 262144) · `judgeMode` ∈ `EXACT|TOKEN|FLOAT` (default `EXACT`) ·
+`FLOAT` requires `floatEps > 0`.
 Duplicate slug → `409`.
+
+> **`SPECIAL` is rejected with `400` on both `POST` and `PUT`.** The mode remains in the schema's
+> CHECK constraint and in `judge_mode`'s accepted values so existing rows still read, but the engine
+> has no custom-checker runner — `Checkers.from()` returns null for it and `JudgeService` fails the
+> submission. Accepting one would create a problem that can be authored, published, added to a
+> contest and submitted to, yet never judged. The `checker_code` column and the `checkerCode` field
+> stay in place for when the runner lands; until then the field is ignored on write.
 
 ### Setter workspace reads (`/api/setter/**`)
 | Method | Path | Auth | Notes |

@@ -85,6 +85,52 @@ class ProblemServiceTest {
                 .save(any());
     }
 
+    /**
+     * The engine cannot run a custom checker, so a SPECIAL problem would be authorable and
+     * submittable but never judgeable. Both write paths must refuse it, not just create.
+     */
+    @Test
+    void specialJudgeModeIsRejectedOnCreate() {
+
+        User setter =
+                user(5L, "PROBLEM_SETTER");
+
+        Throwable t = catchThrowable(() ->
+                service.create(
+                        specialRequest("custom-checked"),
+                        setter));
+
+        assertStatus(
+                t,
+                HttpStatus.BAD_REQUEST);
+
+        assertThat(t)
+                .hasMessageContaining("SPECIAL");
+
+        verify(problemRepository, never())
+                .save(any());
+    }
+
+    @Test
+    void specialJudgeModeIsRejectedOnUpdate() {
+
+        User setter =
+                user(5L, "PROBLEM_SETTER");
+
+        Throwable t = catchThrowable(() ->
+                service.update(
+                        "a-plus-b",
+                        specialRequest("a-plus-b"),
+                        setter));
+
+        assertStatus(
+                t,
+                HttpStatus.BAD_REQUEST);
+
+        verify(problemRepository, never())
+                .save(any());
+    }
+
     @Test
     void duplicateSlugGets409() {
 
@@ -584,6 +630,24 @@ class ProblemServiceTest {
                 "EXACT",
                 null,
                 null,
+                null, null);
+    }
+
+    /** A request that is valid in every respect except the unimplemented judge mode. */
+    private ProblemRequest specialRequest(
+            String slug) {
+
+        return new ProblemRequest(
+                slug,
+                "Custom Checked",
+                "Output any valid answer.",
+                null,
+                800,
+                1000,
+                262144,
+                "SPECIAL",
+                null,
+                "int main() { return 0; }",
                 null, null);
     }
 

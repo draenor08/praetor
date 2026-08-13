@@ -23,6 +23,9 @@ public class ProblemService {
     private static final Set<String> JUDGE_MODES =
             Set.of("EXACT", "TOKEN", "FLOAT", "SPECIAL");
 
+    /** Accepted by the schema, rejected on write — the engine has no custom-checker runner. */
+    private static final String SPECIAL = "SPECIAL";
+
     private final ProblemRepository problemRepository;
     private final ProblemUsageRepository usageRepository;
 
@@ -455,20 +458,22 @@ public class ProblemService {
                     "judgeMode must be EXACT, TOKEN, FLOAT or SPECIAL");
         }
 
+        // SPECIAL survives in the schema CHECK and in JUDGE_MODES, but the engine cannot run a
+        // custom checker: Checkers.from() returns null for it and JudgeService fails the
+        // submission. Accepting one here would mint a problem that can be authored, published,
+        // added to a contest and submitted to — and never judged. Refuse it at the door until
+        // the checker runner exists; the column and the mode stay so old rows still read.
+        if (SPECIAL.equals(judgeMode)) {
+            throw badRequest(
+                    "SPECIAL judge mode is not implemented yet — use EXACT, TOKEN or FLOAT");
+        }
+
         if ("FLOAT".equals(judgeMode)
                 && (request.floatEps() == null
                 || request.floatEps() <= 0)) {
 
             throw badRequest(
                     "floatEps must be > 0 for FLOAT judge mode");
-        }
-
-        if ("SPECIAL".equals(judgeMode)
-                && (request.checkerCode() == null
-                || request.checkerCode().isBlank())) {
-
-            throw badRequest(
-                    "checkerCode is required for SPECIAL judge mode");
         }
     }
 
