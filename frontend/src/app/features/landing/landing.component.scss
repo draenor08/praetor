@@ -1,3 +1,7 @@
+/* Component-scoped, and it has to be: this page's markup uses classes the global stylesheet
+   never defined, and styles.scss is shared ground the shell owns. Colours read the committed
+   cool-slate tokens -- the warm value this file used to carry came from the design prototype. */
+
 .page-shell {
   display: flex;
   flex-direction: column;
@@ -10,7 +14,7 @@
 
 .page-intro h1 {
   margin: 0;
-  color: #fff5e5;
+  color: var(--text-color);
   font-family: var(--serif);
   font-size: clamp(28px, 4vw, 40px);
   font-weight: 600;
@@ -23,9 +27,234 @@
   color: var(--text-soft);
 }
 
+.state-message {
+  padding: 20px;
+  color: var(--text-muted);
+}
+
+.state-message.error {
+  color: var(--error-color);
+}
+
+/* --- hero: copy on the left, the user's own numbers on the right --- */
+
 .hero-card {
   margin-top: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 20px;
+  align-items: start;
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--surface-color);
 }
+
+.hero-copy h2 {
+  margin: 10px 0 0;
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.hero-copy > p:not(.eyebrow) {
+  margin: 10px 0 0;
+  max-width: 60ch;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+/* .btn-primary is global; its quieter sibling is only used here. */
+.btn-secondary {
+  background: transparent;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
+  display: inline-block;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-color);
+}
+
+.profile-card {
+  padding: 18px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--background-color);
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.profile-header strong {
+  display: block;
+  font-size: 15px;
+}
+
+.profile-header span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.avatar {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.avatar.large {
+  width: 48px;
+  height: 48px;
+  font-size: 20px;
+}
+
+.profile-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.profile-stats strong {
+  display: block;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-stats span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* --- stat cards --- */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--surface-color);
+}
+
+.stat-card > span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.stat-card strong {
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-card small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* A card with no data source reads as deliberately empty, not as a zero. */
+.stat-card.placeholder {
+  border-style: dashed;
+}
+
+.stat-card.placeholder strong {
+  color: var(--text-muted);
+}
+
+.untracked {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.gain {
+  color: var(--success-color);
+}
+
+.loss {
+  color: var(--error-color);
+}
+
+/* --- activity feed --- */
+
+.activity-card {
+  padding: 18px 20px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--surface-color);
+}
+
+.activity-card h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.activity-card p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.activity-list li {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr) 7rem;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.activity-list li:last-child {
+  border-bottom: none;
+}
+
+.activity-when {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.activity-verdict {
+  text-align: right;
+  font-weight: 600;
+}
+
+/* --- feature grid --- */
 
 .feature-grid {
   display: grid;
@@ -33,14 +262,48 @@
   gap: 14px;
 }
 
+.feature-card {
+  padding: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--surface-color);
+}
+
+.feature-card h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.feature-card p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 @media (max-width: 900px) {
+  .hero-card {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid,
   .feature-grid {
     grid-template-columns: 1fr 1fr;
   }
 }
 
 @media (max-width: 760px) {
+  .stats-grid,
   .feature-grid {
     grid-template-columns: 1fr;
+  }
+
+  .activity-list li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .activity-verdict {
+    text-align: left;
   }
 }

@@ -10,6 +10,11 @@ interface RailLink {
   icon: string;
   /** When set, the link only renders for these roles. */
   roles?: string[];
+  /**
+   * Exact-match the active highlight. Only Home needs it: its path is '/', which is a prefix of
+   * every route, so prefix matching would leave Home lit on every page.
+   */
+  exact?: boolean;
 }
 
 /**
@@ -33,6 +38,7 @@ export class ShellComponent {
   // Primary sections. The target pages are owned by different teammates and
   // land incrementally; until each ships, its route resolves to ComingSoon.
   readonly links: RailLink[] = [
+    { path: '/', label: 'Home', icon: '⌂', exact: true },
     { path: '/problems', label: 'Problems', icon: '§' },
     { path: '/contests', label: 'Contests', icon: '☰' },
     { path: '/standings', label: 'Standings', icon: '▤' },

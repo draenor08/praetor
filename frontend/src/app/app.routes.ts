@@ -14,6 +14,7 @@ import { ContestProposalsComponent } from './features/contests/contest-proposals
 import { ContestCallsComponent } from './features/setter/contest-calls/contest-calls.component';
 import { ContestStandingsComponent } from './features/contests/contest-standings/contest-standings.component';
 import { AboutComponent } from './features/about/about.component';
+import { LandingComponent } from './features/landing/landing.component';
 import { NotFoundComponent } from './features/not-found/not-found.component';
 import { authGuard } from './core/guards/auth.guard';
 import { roleGuard } from './core/guards/role.guard';
@@ -99,7 +100,9 @@ export const routes: Routes = [
       },
 
       { path: 'about', component: AboutComponent },
-      { path: '', redirectTo: 'problems', pathMatch: 'full' },
+      // Home is the post-login index (it used to redirect to /problems). pathMatch 'full' keeps
+      // an empty-path component route from matching every URL as a zero-segment prefix.
+      { path: '', component: LandingComponent, pathMatch: 'full' },
       // Unknown URLs render a real 404 inside the shell (keeps rail + topbar).
       // Must stay LAST among the shell children so concrete paths match first.
       { path: '**', component: NotFoundComponent }

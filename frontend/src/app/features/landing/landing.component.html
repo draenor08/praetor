@@ -5,56 +5,95 @@
     <p>Review your progress, enter the live contest, and continue solving problems from one focused workspace.</p>
   </div>
 
-  <div class="hero-card">
+  <div *ngIf="loading" class="state-message">Loading your dashboard...</div>
+  <div *ngIf="error" class="state-message error">{{ error }}</div>
+
+  <div class="hero-card" *ngIf="!loading && !error">
     <div class="hero-copy">
       <p class="eyebrow">Authenticated workspace</p>
-      <h2>Welcome back, challenger.</h2>
+      <h2>Welcome back, {{ user?.username }}.</h2>
       <p>Praetor combines practice sessions, live rounds, and submission feedback into one focused environment for disciplined growth.</p>
       <div class="hero-actions">
         <a routerLink="/problems" class="btn-primary">Browse problems</a>
-        <a routerLink="/about" class="btn-secondary">Read help</a>
+        <a routerLink="/contests" class="btn-secondary">See contests</a>
       </div>
     </div>
 
     <aside class="profile-card" aria-label="Current user summary">
       <div class="profile-header">
-        <div class="avatar large">P</div>
+        <div class="avatar large">{{ initial }}</div>
         <div>
-          <strong>praetor</strong>
-          <span>▲ 1512 · Specialist</span>
+          <strong>{{ user?.username }}</strong>
+          <span *ngIf="ratingValue != null">▲ {{ ratingValue }} rating</span>
+          <span *ngIf="ratingValue == null" class="untracked">rating unavailable</span>
         </div>
       </div>
 
       <div class="profile-stats">
         <div>
-          <strong>#12</strong>
+          <strong *ngIf="rating">#{{ rating.rank }}</strong>
+          <strong *ngIf="!rating">&mdash;</strong>
           <span>Global rank</span>
         </div>
         <div>
-          <strong>70%</strong>
-          <span>Accuracy</span>
+          <!-- Delta is real, but only exists after a rated contest. -->
+          <strong *ngIf="lastDelta != null"
+                  [class.gain]="lastDelta > 0"
+                  [class.loss]="lastDelta < 0">
+            {{ lastDelta > 0 ? '+' : '' }}{{ lastDelta }}
+          </strong>
+          <strong *ngIf="lastDelta == null">&mdash;</strong>
+          <span>Last contest</span>
         </div>
       </div>
     </aside>
   </div>
 
   <div class="stats-grid" aria-label="Account statistics">
-    <article class="stat-card">
+    <!-- Solve stats are FR-25, which is unbuilt: these cards say so instead of showing a number
+         nothing computes. -->
+    <article class="stat-card" [class.placeholder]="!solveStatsTracked">
       <span>Problems solved</span>
-      <strong>73</strong>
-      <small>6 solved this week</small>
+      <strong *ngIf="solveStatsTracked && solveStats">{{ solveStats.solved }}</strong>
+      <strong *ngIf="!solveStatsTracked">&mdash;</strong>
+      <small *ngIf="!solveStatsTracked" class="untracked">not tracked yet</small>
     </article>
-    <article class="stat-card">
+    <article class="stat-card" [class.placeholder]="!solveStatsTracked">
       <span>Submissions</span>
-      <strong>104</strong>
-      <small>70% accepted</small>
+      <strong *ngIf="solveStatsTracked && solveStats">{{ solveStats.submissions }}</strong>
+      <strong *ngIf="!solveStatsTracked">&mdash;</strong>
+      <small *ngIf="solveStatsTracked && solveStats">{{ solveStats.accuracyPct }}% accepted</small>
+      <small *ngIf="!solveStatsTracked" class="untracked">not tracked yet</small>
     </article>
     <article class="stat-card">
       <span>Current rating</span>
-      <strong>1512</strong>
-      <small>▲ 46 last contest</small>
+      <strong *ngIf="ratingValue != null">{{ ratingValue }}</strong>
+      <strong *ngIf="ratingValue == null">&mdash;</strong>
+      <small *ngIf="lastDelta != null"
+             [class.gain]="lastDelta > 0"
+             [class.loss]="lastDelta < 0">
+        {{ lastDelta > 0 ? '▲ +' : '▼ ' }}{{ lastDelta }} last contest
+      </small>
+      <small *ngIf="lastDelta == null" class="untracked">no rated contest yet</small>
     </article>
   </div>
+
+  <section class="activity-card" aria-label="Recent activity">
+    <h3>Recent activity</h3>
+    <!-- FR-10 submission history is unbuilt, so the feed states that rather than sitting empty
+         and reading like a user with nothing to show. -->
+    <p *ngIf="!activityTracked" class="untracked">
+      Your submission history is not tracked yet. Open a submission from a problem page to see its verdict.
+    </p>
+    <ul *ngIf="activityTracked" class="activity-list">
+      <li *ngFor="let row of activity">
+        <span class="activity-when">{{ row.at }}</span>
+        <span class="activity-problem">{{ row.problem }}</span>
+        <span class="activity-verdict">{{ row.verdict }}</span>
+      </li>
+    </ul>
+    <p *ngIf="activityTracked && activity.length === 0" class="untracked">No submissions yet.</p>
+  </section>
 
   <div class="feature-grid">
     <article class="feature-card" *ngFor="let feature of features">

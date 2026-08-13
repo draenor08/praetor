@@ -1,10 +1,11 @@
 <div class="shell">
   <aside class="rail">
-    <a routerLink="/problems" class="rail-brand">Praetor</a>
+    <a routerLink="/" class="rail-brand">Praetor</a>
     <nav class="rail-nav">
       <a *ngFor="let link of visibleLinks"
          [routerLink]="link.path"
          routerLinkActive="active"
+         [routerLinkActiveOptions]="{ exact: !!link.exact }"
          class="rail-link">
         <span class="rail-icon" aria-hidden="true">{{ link.icon }}</span>
         <span class="rail-label">{{ link.label }}</span>
