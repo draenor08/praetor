@@ -11,9 +11,12 @@ const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  * Create / edit one problem.
  *
  * <p>The validation below is a deliberate mirror of `ProblemService.validate` — same bounds, same
- * conditional requirements (floatEps for FLOAT, checkerCode for SPECIAL). The point is that the
- * setter sees the problem with their input before a request goes out, instead of decoding a 400.
- * The server still validates; this only removes the round trip.
+ * conditional requirement (floatEps for FLOAT). The point is that the setter sees the problem with
+ * their input before a request goes out, instead of decoding a 400. The server still validates;
+ * this only removes the round trip.
+ *
+ * <p>SPECIAL is absent from `judgeModes` on purpose: the engine has no custom-checker runner, so
+ * the backend rejects that mode outright. Offering it here would only produce a guaranteed 400.
  *
  * <p>While a contest containing the problem is running, the fields that define how it is judged
  * are locked, because the backend refuses to change them mid-contest. Prose stays editable so
@@ -31,7 +34,7 @@ export class ProblemEditorComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
-  readonly judgeModes = ['EXACT', 'TOKEN', 'FLOAT', 'SPECIAL'];
+  readonly judgeModes = ['EXACT', 'TOKEN', 'FLOAT'];
 
   /** null while creating; the original slug while editing (the slug itself is editable). */
   originalSlug: string | null = null;
@@ -153,10 +156,6 @@ export class ProblemEditorComponent implements OnInit {
       e['floatEps'] = 'FLOAT judging needs a tolerance greater than 0.';
     }
 
-    if (this.form.judgeMode === 'SPECIAL' && !this.form.checkerCode?.trim()) {
-      e['checkerCode'] = 'SPECIAL judging needs checker code.';
-    }
-
     this.errors = e;
     return Object.keys(e).length === 0;
   }
@@ -177,7 +176,7 @@ export class ProblemEditorComponent implements OnInit {
       constraints: this.form.constraints?.trim() ? this.form.constraints : null,
       editorial: this.form.editorial?.trim() ? this.form.editorial : null,
       floatEps: this.form.judgeMode === 'FLOAT' ? Number(this.form.floatEps) : null,
-      checkerCode: this.form.judgeMode === 'SPECIAL' ? this.form.checkerCode : null,
+      checkerCode: null,
       // Only meaningful at creation: publication is one-way, so an existing problem's draft
       // status is never changed from here.
       draft: this.editing ? null : this.form.draft
