@@ -9,7 +9,8 @@ import java.util.List;
  * wall time and memory than the problem's C++-oriented base limits).
  *
  * <p>Commands are argv fragments run inside the judge container's per-run work dir. Adding a
- * language (e.g. Java) is a new enum constant + the toolchain in {@code judge/Dockerfile}.
+ * language is a new enum constant here + the toolchain in {@code judge/Dockerfile} — nothing in the
+ * runner or the service is language-aware.
  */
 public enum Language {
 
@@ -22,7 +23,19 @@ public enum Language {
             // py_compile is a syntax check; a SyntaxError exits non-zero with stderr → CE.
             List.of("python3", "-m", "py_compile", "main.py"),
             List.of("python3", "main.py"),
-            3.0, 2.0);
+            3.0, 2.0),
+
+    // The file name is fixed by the language: javac requires Main.java to hold `public class Main`,
+    // so submissions must use that class name. A mismatch is a compile error, i.e. an honest CE.
+    JAVA("Main.java",
+            List.of("javac", "-encoding", "UTF-8", "Main.java"),
+            // SerialGC holds the JVM's thread count near the floor — the sandbox runs with
+            // --pids-limit and a parallel-GC JVM can spend that budget before main() starts.
+            // -Xss64m gives deep recursion room, which C++ gets from the default stack.
+            List.of("java", "-XX:+UseSerialGC", "-Xss64m", "-cp", ".", "Main"),
+            // Wall time absorbs JVM startup (~100-250ms). Memory is ×3 because the measured figure
+            // is whole-process RSS, and a JVM's floor is tens of MB before user code allocates.
+            3.0, 3.0);
 
     private final String sourceFile;
     private final List<String> compileCmd;

@@ -97,8 +97,16 @@ export class ProblemDetailComponent implements OnInit, OnDestroy {
     return ProblemDetailComponent.monacoLoading;
   }
 
+  /** Monaco's grammar id for the selected language; C++ is the fallback and the default. */
   private monacoLang(): string {
-    return this.language === 'PYTHON' ? 'python' : 'cpp';
+    switch (this.language) {
+      case 'PYTHON':
+        return 'python';
+      case 'JAVA':
+        return 'java';
+      default:
+        return 'cpp';
+    }
   }
 
   /** Switch the editor's syntax highlighting when the language select changes. */

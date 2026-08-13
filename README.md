@@ -245,12 +245,12 @@ Baseline auth (register/login/roles/profile) is required but **not** counted. Op
 | FR | Feature | Primary backend | Primary frontend |
 |---|---|---|---|
 | FR-4 | Submit → sandbox → verdict | `SubmissionController`, `JudgeService`, `SandboxRunner` | `submit.component` |
-| FR-5 | Multi-language judging | `LanguageConfig`, `SandboxRunner` | `submit.component` |
+| FR-5 | Multi-language judging (C++ / Python / Java) | `engine/Language`, `SandboxRunner` | `problem-detail.component` |
 | FR-6 | Per-test-case verdict | `SubmissionResult`, `checker/*` | `submission-detail.component` |
 | FR-7 | Time / memory / process limits | `SandboxRunner`, `DockerExecUtil` | — |
 | FR-8 | Async queue + worker pool | `queue/SubmissionQueue`, `queue/JudgeWorker` | — |
 | FR-9 | Compile-error capture | `JudgeService` | `submission-detail.component` |
-| FR-11 | Special / float judge | `checker/FloatChecker`, `checker/SpecialChecker` | — |
+| FR-11 | Token / float checkers (`SPECIAL` refused on write) | `checker/TokenChecker`, `checker/FloatChecker` | — |
 | FR-18 | Live standings (WebSocket) | `StandingsService`, `ws/StandingsPublisher` | `standings.component` |
 | FR-19 | ICPC scoring + penalty | `ScoringService` | `standings.component` |
 | FR-21 | Standings freeze | `StandingsService` | `standings.component` |
