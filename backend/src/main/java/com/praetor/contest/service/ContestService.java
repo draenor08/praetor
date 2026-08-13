@@ -15,6 +15,7 @@ import com.praetor.contest.repository.ContestProblemRow;
 import com.praetor.contest.repository.ContestRepository;
 import com.praetor.contest.repository.RegistrationRepository;
 import com.praetor.identity.entity.User;
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
@@ -94,10 +95,13 @@ public class ContestService {
 
     @Transactional(readOnly = true)
     public List<ContestSummary> list() {
+        // One instant for the whole list: every row is describing the same moment, and a per-row
+        // now() would let two rows disagree about which contest is running.
+        String now = Instant.now().toString();
         return contestRepo.findAll().stream()
                 .map(c -> new ContestSummary(c.getId(), c.getTitle(),
                         c.getStartsAt().toInstant().toString(),
-                        c.getEndsAt().toInstant().toString(), c.getScoring(), c.isCallsOpen()))
+                        c.getEndsAt().toInstant().toString(), c.getScoring(), c.isCallsOpen(), now))
                 .toList();
     }
 
@@ -165,6 +169,6 @@ public class ContestService {
                 contest.getStartsAt().toInstant().toString(),
                 contest.getEndsAt().toInstant().toString(),
                 contest.getFreezeMin(), contest.getScoring(), registered, contest.isCallsOpen(),
-                visible, problems);
+                visible, problems, Instant.now().toString());
     }
 }

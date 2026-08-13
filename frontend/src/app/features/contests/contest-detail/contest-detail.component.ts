@@ -5,6 +5,8 @@ import { ApiService } from '../../../core/services/api.service';
 import { TokenService } from '../../../core/services/token.service';
 import { ContestDetail } from '../../../core/models/contest.model';
 import { StandingsLiveComponent } from '../standings-live/standings-live.component';
+import { CountdownComponent } from '../../../shared/components/countdown/countdown.component';
+import { phaseOf, serverNowMs, serverSkewMs } from '../../../shared/contest-clock';
 
 /**
  * Contest page: meta, the problem set, registration, and the live ICPC standings board.
@@ -17,7 +19,7 @@ import { StandingsLiveComponent } from '../standings-live/standings-live.compone
 @Component({
   selector: 'app-contest-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, StandingsLiveComponent],
+  imports: [CommonModule, RouterModule, StandingsLiveComponent, CountdownComponent],
   templateUrl: './contest-detail.component.html',
   styleUrls: ['./contest-detail.component.scss']
 })
@@ -39,14 +41,23 @@ export class ContestDetailComponent implements OnInit {
     return !!role && role !== 'USER';
   }
 
+  /**
+   * Server time now. Both phase getters below read it rather than `Date.now()`: they decide what the
+   * page SAYS about a window the backend actually enforces, so a skewed browser clock would have the
+   * page contradict the API it is talking to.
+   */
+  private get nowMs(): number {
+    return serverNowMs(serverSkewMs(this.contest?.serverNow));
+  }
+
   /** Has the contest finished? Ended contests are open to everyone, registered or not. */
   get ended(): boolean {
-    return !!this.contest && Date.now() > Date.parse(this.contest.endsAt);
+    return !!this.contest && phaseOf(this.contest.startsAt, this.contest.endsAt, this.nowMs) === 'Ended';
   }
 
   /** Has it started? Registering early buys no head start, so the prompt says so. */
   get started(): boolean {
-    return !!this.contest && Date.now() >= Date.parse(this.contest.startsAt);
+    return !!this.contest && phaseOf(this.contest.startsAt, this.contest.endsAt, this.nowMs) !== 'Upcoming';
   }
 
   /** Registration is only worth offering to a contestant on a contest that has not ended. */
@@ -71,6 +82,16 @@ export class ContestDetailComponent implements OnInit {
   ngOnInit(): void {
     this.contestId = Number(this.route.snapshot.paramMap.get('id'));
 
+    this.load();
+  }
+
+  /**
+   * The countdown hit a boundary — the contest just started, or just ended. What that changes
+   * (whether the problem slots carry slugs now) is decided server-side, so re-fetch instead of
+   * flipping anything locally. Without this, a participant watching the clock reach zero would sit
+   * on a page that still says the problems are withheld.
+   */
+  onPhaseChange(): void {
     this.load();
   }
 

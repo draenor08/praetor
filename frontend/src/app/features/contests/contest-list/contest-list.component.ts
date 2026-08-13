@@ -4,11 +4,13 @@ import { RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { TokenService } from '../../../core/services/token.service';
 import { ContestSummary } from '../../../core/models/contest.model';
+import { CountdownComponent } from '../../../shared/components/countdown/countdown.component';
+import { ContestPhase, phaseOf, serverNowMs, serverSkewMs } from '../../../shared/contest-clock';
 
 @Component({
   selector: 'app-contest-list',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, CountdownComponent],
   templateUrl: './contest-list.component.html',
   styleUrls: ['./contest-list.component.scss']
 })
@@ -43,15 +45,16 @@ export class ContestListComponent implements OnInit {
     });
   }
 
-  /** Running / Upcoming / Ended, relative to now — a small at-a-glance status pill. */
-  status(c: ContestSummary): 'Running' | 'Upcoming' | 'Ended' {
-    const now = Date.now();
-    if (now < Date.parse(c.startsAt)) {
-      return 'Upcoming';
-    }
-    if (now > Date.parse(c.endsAt)) {
-      return 'Ended';
-    }
-    return 'Running';
+  /**
+   * Running / Upcoming / Ended — a small at-a-glance status pill, decided against the SERVER clock
+   * the rows carry, so the pill cannot disagree with the countdown beside it (or with the backend).
+   */
+  status(c: ContestSummary): ContestPhase {
+    return phaseOf(c.startsAt, c.endsAt, serverNowMs(serverSkewMs(c.serverNow)));
+  }
+
+  /** A contest crossed a boundary while the page was open — re-fetch so the pills stay honest. */
+  onPhaseChange(): void {
+    this.api.getContests().subscribe({ next: (list) => (this.contests = list) });
   }
 }

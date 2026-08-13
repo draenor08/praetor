@@ -38,7 +38,13 @@
   background-color: rgba(99, 102, 241, 0.05);
 }
 
-.col-status { width: 7rem; }
+.col-status { width: 10rem; }
+
+/* The countdown sits under the pill, not beside it — the row is already wide. */
+.row-countdown {
+  display: block;
+  margin-top: 4px;
+}
 .col-when { width: 9rem; }
 .col-mode { width: 6rem; }
 
