@@ -4,6 +4,7 @@ import com.praetor.identity.entity.User;
 import com.praetor.problem.dto.ProblemRequest;
 import com.praetor.problem.entity.Problem;
 import com.praetor.problem.repository.ProblemRepository;
+import com.praetor.problem.repository.ProblemTagRepository;
 import com.praetor.problem.repository.ProblemUsageRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -28,10 +29,14 @@ class ProblemServiceTest {
     private final ProblemUsageRepository usageRepository =
             mock(ProblemUsageRepository.class);
 
+    private final ProblemTagRepository tagRepository =
+            mock(ProblemTagRepository.class);
+
     private final ProblemService service =
             new ProblemService(
                     problemRepository,
-                    usageRepository);
+                    usageRepository,
+                    tagRepository);
 
     @Test
     void problemSetterCanCreateProblem() {
@@ -83,6 +88,89 @@ class ProblemServiceTest {
 
         verify(problemRepository, never())
                 .save(any());
+    }
+
+    /**
+     * Tags are a shared vocabulary, so they are normalised on write rather than stored as typed —
+     * otherwise "Math", "math " and "math" become three tags that each filter differently.
+     */
+    @Test
+    void tagsAreLowercasedTrimmedAndDeduplicatedOnCreate() {
+
+        User setter = user(5L, "PROBLEM_SETTER");
+
+        when(problemRepository.existsBySlug("tagged"))
+                .thenReturn(false);
+
+        when(problemRepository.save(any(Problem.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.create(
+                taggedRequest("tagged", List.of("  Math ", "GREEDY", "math", "")),
+                setter);
+
+        // Replace-not-merge: the old rows go before the new ones land, or a tag could never be
+        // removed. (The problem id is IDENTITY-generated, so it is only real against a database —
+        // the id reaching problem_tags is covered by the live end-to-end run, not here.)
+        verify(tagRepository).deleteTagsOfProblem(any());
+        verify(tagRepository).insertTagIfAbsent("math");
+        verify(tagRepository).insertTagIfAbsent("greedy");
+        verify(tagRepository, never()).insertTagIfAbsent("Math");
+        verify(tagRepository, never()).insertTagIfAbsent("");
+    }
+
+    /** Null tags means "this request is not about tags" — a client that omits them must not wipe them. */
+    @Test
+    void omittingTagsLeavesThemUntouched() {
+
+        User setter = user(5L, "PROBLEM_SETTER");
+
+        when(problemRepository.existsBySlug("a-plus-b"))
+                .thenReturn(false);
+
+        when(problemRepository.save(any(Problem.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.create(
+                validRequest("a-plus-b"),
+                setter);
+
+        verify(tagRepository, never()).deleteTagsOfProblem(any());
+    }
+
+    @Test
+    void tooManyTagsGets400() {
+
+        User setter = user(5L, "PROBLEM_SETTER");
+
+        Throwable t = catchThrowable(() ->
+                service.create(
+                        taggedRequest("tagged",
+                                List.of("a", "b", "c", "d", "e", "f", "g", "h", "i")),
+                        setter));
+
+        assertStatus(
+                t,
+                HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * The list filter passes selected tags to SQL as one comma-separated string, so a comma inside a
+     * stored name would split into two filters and quietly widen every search using it.
+     */
+    @Test
+    void tagWithCommaGets400() {
+
+        User setter = user(5L, "PROBLEM_SETTER");
+
+        Throwable t = catchThrowable(() ->
+                service.create(
+                        taggedRequest("tagged", List.of("math,greedy")),
+                        setter));
+
+        assertStatus(
+                t,
+                HttpStatus.BAD_REQUEST);
     }
 
     /**
@@ -199,7 +287,7 @@ class ProblemServiceTest {
                         "TOKEN",
                         null,
                         null,
-                        "Editorial", null);
+                        "Editorial", null, null);
 
         var response =
                 service.update(
@@ -391,7 +479,7 @@ class ProblemServiceTest {
                         "EXACT",
                         null,
                         null,
-                        null, null);
+                        null, null, null);
 
         Throwable t = catchThrowable(() ->
                 service.update(
@@ -432,7 +520,7 @@ class ProblemServiceTest {
                         "EXACT",
                         null,
                         null,
-                        null, null);
+                        null, null, null);
 
         var response =
                 service.update(
@@ -568,7 +656,7 @@ class ProblemServiceTest {
                         "EXACT",
                         null,
                         null,
-                        null, null);
+                        null, null, null);
 
         Throwable t = catchThrowable(() ->
                 service.create(
@@ -601,7 +689,7 @@ class ProblemServiceTest {
                         "FLOAT",
                         null,
                         null,
-                        null, null);
+                        null, null, null);
 
         Throwable t = catchThrowable(() ->
                 service.create(
@@ -630,7 +718,26 @@ class ProblemServiceTest {
                 "EXACT",
                 null,
                 null,
-                null, null);
+                null, null, null);
+    }
+
+    /** A valid request carrying tags, which {@link #validRequest} deliberately omits. */
+    private ProblemRequest taggedRequest(
+            String slug,
+            List<String> tags) {
+
+        return new ProblemRequest(
+                slug,
+                "Tagged",
+                "Statement.",
+                null,
+                800,
+                1000,
+                262144,
+                "EXACT",
+                null,
+                null,
+                null, tags, null);
     }
 
     /** A request that is valid in every respect except the unimplemented judge mode. */
@@ -648,7 +755,7 @@ class ProblemServiceTest {
                 "SPECIAL",
                 null,
                 "int main() { return 0; }",
-                null, null);
+                null, null, null);
     }
 
     private ProblemUsageRepository.ManagedProblemRow managedRow(

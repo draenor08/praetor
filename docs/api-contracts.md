@@ -41,7 +41,7 @@ Roles (canonical — match DB `users.role` CHECK + backend `User.role`): `USER` 
 ### Problems
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET  | `/api/problems` | **anonymous** | non-archived problems, **minus any under contest embargo** (staff see all) |
+| GET  | `/api/problems` | **anonymous** | non-archived problems, **minus any under contest embargo** (staff see all); filterable — see Search below |
 | GET  | `/api/problems/{slug}` | **anonymous** | full statement; hidden testcases NOT returned, samples only. **`403` while embargoed** |
 | POST | `/api/problems` | SETTER or ADMIN | create (FR-12) → `201` problem object |
 | PUT  | `/api/problems/{slug}` | SETTER or ADMIN | update (FR-12) |
@@ -103,16 +103,20 @@ public list and keeps every submission, standing and rating intact.
 }
 ```
 
-**Public read shapes** (narrower on purpose — no editorial, no checker, no hidden data):
+**Public read shapes** (narrower on purpose — no checker, no hidden data; `editorial` only through
+the FR-16 gate below):
 ```json
 // GET /api/problems
-[ {"slug":"a-plus-b","title":"A + B","difficulty":800,"judgeMode":"EXACT"} ]
+[ {"slug":"a-plus-b","title":"A + B","difficulty":800,"judgeMode":"EXACT",
+   "tags":["implementation","math"]} ]
 
 // GET /api/problems/{slug}
 { "slug":"a-plus-b","title":"A + B","statement":"...","constraints":"...",
   "difficulty":800,"timeLimitMs":1000,"memLimitKb":262144,"judgeMode":"EXACT",
+  "tags":["implementation","math"], "editorial":null,
   "samples":[{"ord":1,"input":"2 3","expected":"5"}] }
 ```
+`tags` is always present and never null — an untagged problem sends `[]`.
 
 **Validation** (`POST`/`PUT`, all `400`): slug required, lowercased/trimmed, must match
 `^[a-z0-9]+(?:-[a-z0-9]+)*$`, ≤80 chars · title required, ≤200 · statement required ·
@@ -179,16 +183,69 @@ statement via `kind='SAMPLE'`; the per-testcase verdict table carries verdict/ti
   mid-contest would invalidate verdicts already awarded, and an `APPEND` adds a case earlier
   submissions were never judged against.
 
-### Tags (FR-14) — *not implemented yet*
+### Tags (FR-14) — FROZEN
 | Method | Path | Auth | |
 |---|---|---|---|
-| GET | `/api/tags` | any | `["math","greedy",...]` |
+| GET | `/api/tags` | **anonymous** | `["brute force","geometry","greedy",...]` — every tag in use, alphabetical |
 
-> The `tags` / `problem_tags` tables exist and are seeded, but no endpoint serves them and no
-> response includes a `tags` field. FR-14/FR-15 (tags, search, filters) are unbuilt — planned shapes,
-> not live contracts.
+Tags are authored as part of the problem: `POST`/`PUT /api/problems` accept `"tags": ["math","greedy"]`.
 
-> **Optional (FR-16, not in the 21):** `PUT /api/problems/{slug}/editorial` (PROBLEM_SETTER) `{ "editorial": "markdown" }`.
+* **Normalised on write** — trimmed, lowercased, de-duplicated, blanks dropped. The vocabulary is
+  shared, so `"Math"`, `"math "` and `"math"` must not become three tags that each filter differently.
+* **Replace, not merge.** The list given becomes the problem's complete set, so a tag can be removed.
+* **`null` means "not part of this request"** and leaves existing tags untouched; `[]` clears them.
+  A client written before tags existed therefore cannot wipe them by omission.
+* Validation (`400`): at most **8** tags per problem · each ≤40 chars · **no commas** (the search
+  filter passes selected tags to SQL as one comma-separated string, so a comma in a stored name
+  would split into two filters and quietly widen every search using it).
+* `/api/tags` is public because tag names carry no problem identity — nothing here is embargoed.
+
+### Search & filter (FR-15) — FROZEN
+`GET /api/problems` takes four optional query parameters. Omitting all of them returns the plain
+full list, so the unfiltered contract is unchanged.
+
+| Param | Type | Meaning |
+|---|---|---|
+| `q` | string | substring of title **or** slug, case-insensitive |
+| `minDifficulty` | int | inclusive lower bound; omit for unbounded |
+| `maxDifficulty` | int | inclusive upper bound; omit for unbounded |
+| `tags` | repeated | `?tags=math&tags=greedy` — **AND**: the problem must carry every one |
+
+* `q` matches literally: it compiles to `position()`, not `LIKE`, so a `%` or `_` typed into the
+  search box is an ordinary character rather than a wildcard.
+* Filter values are normalised like stored tags, so `?tags=%20MATH%20` finds `math`.
+* Validation (`400`): `minDifficulty > maxDifficulty` · more than 8 `tags` · a `tags` value
+  containing a comma.
+* **No pagination.** FR-15 does not ask for it and the deployment is a single-machine demo; adding
+  it later is additive (`page`/`size`) and does not change these parameters.
+
+> ⚠ **The filters live in the same SQL statement as the contest embargo, deliberately.** The public
+> list is `archived = false AND NOT EXISTS (unended contest using it)`, and every filter is an
+> additional `AND` on that one query — not a second search query beside it. A parallel query would
+> be a path on which an embargoed problem could be found by name or tag while its contest runs.
+> Verified: with three problems under embargo, searching each one's exact slug anonymously returns
+> zero rows, and their tags never list them.
+
+### Editorial (FR-16, Optional) — FROZEN
+No dedicated endpoint: `editorial` is an ordinary field on `POST`/`PUT /api/problems`, so the setter
+writes it in the problem editor like any other prose. What is new is who may **read** it back on
+`GET /api/problems/{slug}`:
+
+| Caller | `editorial` |
+|---|---|
+| `PROBLEM_SETTER` / `ADMIN` | always |
+| Anonymous | `null` |
+| Logged in, no accepted submission for this problem | `null` |
+| Logged in, has an `AC` — **and no contest is using the problem** | the editorial |
+| Logged in, has an `AC`, but a contest using it has not ended | `null` |
+
+* **Absence is the enforcement.** A withheld editorial is omitted from the payload, never sent with a
+  flag the client is trusted to respect.
+* Keyed on the caller's **own** accepted submission, so it cannot be borrowed from another user.
+* The contest clause is stricter than the statement embargo on purpose. A registered participant can
+  legitimately read a statement mid-round; handing that same participant the solution would be worse.
+  So the editorial keys off "is any contest still using this problem" (upcoming **or** running),
+  not "may this caller see the statement".
 
 ---
 
@@ -263,8 +320,15 @@ Exceeded →
 |---|---|---|---|
 | POST | `/api/submissions` | USER | submit code; rate-limited (FR-26 filter) |
 | GET  | `/api/submissions/{id}` | owner/ADMIN | full result incl. per-testcase |
-| GET  | `/api/submissions?user=&problem=&contest=` | any | history list (FR-10) |
+| GET  | `/api/submissions?user=&problem=&contest=` | owner/staff | history list (FR-10) — **unbuilt** |
 | POST | `/api/submissions/{id}/rejudge` | ADMIN | FR-27 |
+
+> ⚠ **The FR-10 list is `owner/staff`, corrected from an earlier `any`.** A publicly readable
+> `?user=` list re-exposes exactly what the standings freeze exists to hide: during a freeze the
+> board withholds a late `AC`, but anyone could read that user's submission list and see it anyway.
+> Whoever builds FR-10 must scope the query to the caller's own submissions unless the caller is
+> staff. The row also must not carry `sourceCode` — `GET /api/submissions/{id}` is `owner/ADMIN`
+> precisely so source stays private, and a list that included it would route around that.
 
 ```json
 // POST /api/submissions  request

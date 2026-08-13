@@ -7,6 +7,9 @@ import { ProblemInput } from '../../../core/models/problem.model';
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/** Mirrors ProblemService.MAX_TAGS_PER_PROBLEM, so the setter sees the limit before the 400. */
+const MAX_TAGS = 8;
+
 /**
  * Create / edit one problem.
  *
@@ -61,6 +64,12 @@ export class ProblemEditorComponent implements OnInit {
   /** Field name → message, keyed the same as the form fields. */
   errors: Record<string, string> = {};
 
+  /**
+   * Tags as typed. Kept as one comma-separated string rather than a chip widget: the backend
+   * normalises and de-duplicates anyway, so parsing on save is the whole job.
+   */
+  tagsText = '';
+
   /** Judging fields are frozen while a contest using this problem is running. */
   judgingLocked = false;
   archived = false;
@@ -101,6 +110,7 @@ export class ProblemEditorComponent implements OnInit {
           checkerCode: problem.checkerCode ?? '',
           editorial: problem.editorial ?? ''
         };
+        this.tagsText = (problem.tags ?? []).join(', ');
         this.archived = problem.archived;
         this.loading = false;
       },
@@ -156,8 +166,23 @@ export class ProblemEditorComponent implements OnInit {
       e['floatEps'] = 'FLOAT judging needs a tolerance greater than 0.';
     }
 
+    if (this.parsedTags.length > MAX_TAGS) {
+      e['tags'] = `At most ${MAX_TAGS} tags.`;
+    }
+
     this.errors = e;
     return Object.keys(e).length === 0;
+  }
+
+  /**
+   * Split, trimmed, blank-free. Lowercasing and de-duplication are the server's job — doing them
+   * here too would only hide a disagreement between the two.
+   */
+  private get parsedTags(): string[] {
+    return this.tagsText
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
   }
 
   save(): void {
@@ -177,6 +202,7 @@ export class ProblemEditorComponent implements OnInit {
       editorial: this.form.editorial?.trim() ? this.form.editorial : null,
       floatEps: this.form.judgeMode === 'FLOAT' ? Number(this.form.floatEps) : null,
       checkerCode: null,
+      tags: this.parsedTags,
       // Only meaningful at creation: publication is one-way, so an existing problem's draft
       // status is never changed from here.
       draft: this.editing ? null : this.form.draft

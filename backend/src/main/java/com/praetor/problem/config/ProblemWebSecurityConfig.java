@@ -38,6 +38,10 @@ public class ProblemWebSecurityConfig {
                                 HttpMethod.GET.name()),
                         new AntPathRequestMatcher(
                                 "/api/problems/*",
+                                HttpMethod.GET.name()),
+                        // The tag vocabulary, read by the same page as the list.
+                        new AntPathRequestMatcher(
+                                "/api/tags",
                                 HttpMethod.GET.name()));
 
         http

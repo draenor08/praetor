@@ -13,6 +13,10 @@
       </div>
     </div>
 
+    <div *ngIf="problem.tags.length" class="tag-row">
+      <span class="tag" *ngFor="let tag of problem.tags">{{ tag }}</span>
+    </div>
+
     <p class="statement-body">{{ problem.statement }}</p>
 
     <div *ngIf="problem.constraints" class="constraints">
@@ -33,6 +37,16 @@
         </div>
       </div>
     </div>
+
+    <!--
+      FR-16. The server sends `editorial` only to staff, or to a solver once no contest is using the
+      problem — so its presence in the payload IS the authorisation. Collapsed by default: someone
+      who solved this and came back for a related problem should not meet the answer unasked.
+    -->
+    <details *ngIf="problem.editorial" class="editorial">
+      <summary>Editorial</summary>
+      <p class="statement-body">{{ problem.editorial }}</p>
+    </details>
   </section>
 
   <!-- Submit pane -->

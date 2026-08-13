@@ -1,9 +1,21 @@
-/** GET /api/problems row. */
+/** GET /api/problems row. `tags` is always present, empty when the problem has none. */
 export interface ProblemSummary {
   slug: string;
   title: string;
   difficulty: number;
   judgeMode: string;
+  tags: string[];
+}
+
+/**
+ * Query for GET /api/problems (FR-15). Every field is optional and an omitted one is inert, so an
+ * empty filter is the plain full list. `tags` is AND — a problem must carry all of them.
+ */
+export interface ProblemFilter {
+  q?: string;
+  minDifficulty?: number | null;
+  maxDifficulty?: number | null;
+  tags?: string[];
 }
 
 /** One visible sample test case. */
@@ -23,6 +35,13 @@ export interface ProblemDetail {
   timeLimitMs: number;
   memLimitKb: number;
   judgeMode: string;
+  tags: string[];
+  /**
+   * The setter's solution write-up (FR-16), or null when the caller has not earned it: staff always,
+   * everyone else only after solving it and only while no contest is using the problem. Absence is
+   * the enforcement — the server omits it rather than trusting the client to hide it.
+   */
+  editorial: string | null;
   samples: Sample[];
 }
 
@@ -62,6 +81,7 @@ export interface ProblemFull {
   floatEps: number | null;
   checkerCode: string | null;
   editorial: string | null;
+  tags: string[];
   createdBy: number | null;
   archived: boolean;
 }
@@ -79,6 +99,8 @@ export interface ProblemInput {
   floatEps: number | null;
   checkerCode: string | null;
   editorial: string | null;
+  /** Replaces the problem's tags outright. Omit to leave them untouched; empty clears them. */
+  tags?: string[] | null;
   /**
    * Create it as a draft: archived and unpublished, so a contest can still use it. Only read on
    * create — publication is one-way, so an existing problem's status is never changed this way.

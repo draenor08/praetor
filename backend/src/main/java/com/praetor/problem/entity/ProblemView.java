@@ -54,6 +54,10 @@ public class ProblemView {
     @Column
     private boolean archived;
 
+    /** The setter's solution write-up. Served only through the FR-16 gate, never with the list. */
+    @Column(columnDefinition = "TEXT")
+    private String editorial;
+
     protected ProblemView() {
     }
 
@@ -95,5 +99,9 @@ public class ProblemView {
 
     public boolean isArchived() {
         return archived;
+    }
+
+    public String getEditorial() {
+        return editorial;
     }
 }

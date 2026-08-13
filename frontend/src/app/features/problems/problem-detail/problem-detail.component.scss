@@ -193,3 +193,30 @@
   color: #d9b64a;
   font-size: 0.9rem;
 }
+
+/* Tags under the title (FR-14) — reuses the .tag chip defined above. */
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+/* Editorial (FR-16). Only rendered when the server chose to send one. */
+.editorial {
+  margin-top: 1.5rem;
+  padding: 0.85rem 1rem;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.editorial summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.editorial .statement-body {
+  margin-top: 0.75rem;
+}

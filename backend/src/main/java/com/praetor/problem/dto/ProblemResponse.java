@@ -1,5 +1,7 @@
 package com.praetor.problem.dto;
 
+import java.util.List;
+
 public record ProblemResponse(
         Long id,
         String slug,
@@ -13,6 +15,7 @@ public record ProblemResponse(
         Double floatEps,
         String checkerCode,
         String editorial,
+        List<String> tags,
         Long createdBy,
         boolean archived) {
 }

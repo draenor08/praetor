@@ -101,8 +101,22 @@
 
 
   <div class="field">
+    <label for="tags">Tags <span class="hint-inline">optional, comma-separated</span></label>
+    <input id="tags" name="tags" [(ngModel)]="tagsText" placeholder="math, greedy">
+    <span class="hint">
+      Lowercased and de-duplicated on save, so the vocabulary stays shared. Up to 8; saving replaces
+      the whole set, so deleting one here removes it.
+    </span>
+    <span class="field-error" *ngIf="errors['tags']">{{ errors['tags'] }}</span>
+  </div>
+
+  <div class="field">
     <label for="editorial">Editorial <span class="hint-inline">optional, markdown</span></label>
     <textarea id="editorial" name="editorial" rows="6" [(ngModel)]="form.editorial"></textarea>
+    <span class="hint">
+      Shown to a contestant only after they solve this problem, and never while a contest is using
+      it. Staff always see it.
+    </span>
   </div>
 
   <!-- Only on create: publication is one-way, so this cannot be undone from the editor later. -->
