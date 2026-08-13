@@ -180,6 +180,38 @@ class ContestServiceTest {
                 .save(any());
     }
 
+    /**
+     * POINTS passes the request's pattern and the schema CHECK, but only ICPC is implemented — an
+     * accepted POINTS contest would be silently scored by ICPC rules. Refused before anything is
+     * written, same treatment as the unimplemented SPECIAL judge mode.
+     */
+    @Test
+    void create_unimplementedScoring_400() {
+
+        Throwable t =
+                org.assertj.core.api.Assertions
+                        .catchThrowable(() ->
+                                service.create(
+                                        new CreateContestRequest(
+                                                "Round",
+                                                start,
+                                                end,
+                                                15,
+                                                "POINTS",
+                                                twoProblems(),
+                                                false),
+                                        user(
+                                                1L,
+                                                "ADMIN")));
+
+        assertStatus(
+                t,
+                HttpStatus.BAD_REQUEST);
+
+        verify(contestRepo, never())
+                .save(any());
+    }
+
     @Test
     void create_duplicateLabels_400() {
 

@@ -26,6 +26,9 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class ContestService {
 
+    /** The only scoring mode the standings calculator implements. */
+    private static final String ICPC = "ICPC";
+
     private final ContestRepository contestRepo;
     private final ContestProblemRepository contestProblemRepo;
     private final RegistrationRepository registrationRepo;
@@ -46,6 +49,14 @@ public class ContestService {
         }
         if (!req.endsAt().isAfter(req.startsAt())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "endsAt must be after startsAt");
+        }
+        // POINTS is in the schema CHECK and in the request's pattern, but StandingsCalculator only
+        // implements ICPC: a POINTS contest would be accepted and then scored by ICPC rules without
+        // ever saying so. Refuse it here rather than compute a scoreboard that misrepresents itself.
+        // The column and the accepted values stay, so an existing POINTS row still reads.
+        if (!ICPC.equals(req.scoring())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "scoring " + req.scoring() + " is not implemented yet — use ICPC");
         }
         long distinctLabels = req.problems().stream().map(p -> p.label().trim()).distinct().count();
         if (distinctLabels != req.problems().size()) {
