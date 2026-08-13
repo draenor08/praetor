@@ -240,7 +240,7 @@ praetor/
 
 ## Feature → files (the 21 committed features)
 
-Baseline auth (register/login/roles/profile) is required but **not** counted. Optional features (FR-16 editorial, FR-22 virtual, FR-23 clarifications, FR-25 heatmap) are out of this tree until pulled in.
+Baseline auth (register/login/roles/profile) is required but **not** counted. Optional features (FR-22 virtual, FR-23 clarifications, and the activity heatmap layered on FR-25) are out of this tree until pulled in. **FR-16 editorial is Optional but built** — note that FR-25 itself is a counted feature; only the heatmap on top of it is optional.
 
 | FR | Feature | Primary backend | Primary frontend |
 |---|---|---|---|
@@ -259,11 +259,12 @@ Baseline auth (register/login/roles/profile) is required but **not** counted. Op
 | FR-13 | Bulk test-case upload | `TestCaseController`, `TestCaseService` | `testcase-upload.component` |
 | FR-17 | Create contest | `ContestController`, `ContestService` | `contest-form.component` |
 | FR-24 | Rating (ELO) + global rank | `RatingService`, `RatingHistory` | `rating.component`, `leaderboard.component` |
-| FR-26 | Submission rate-limit | `RateLimitFilter` | — |
+| FR-26 | Submission rate-limit | `SubmissionRateLimiter` (inside `SubmissionService.create`) | cooldown on `problem-detail.component` |
 | FR-10 | Submission history + code viewer | `SubmissionController`, `SubmissionService` | `submission-list.component`, `submission-detail.component` |
-| FR-14 | Difficulty + tags | `TagController`, `TagService` | `problem-form.component`, `problem-list.component` |
-| FR-15 | Search / filter problems | `ProblemService` | `problem-list.component` |
-| FR-20 | Contest registration | `RegistrationController`, `RegistrationService` | `contest-detail.component` |
+| FR-14 | Difficulty + tags | `TagController`, `ProblemTagRepository` | `problem-editor.component`, `problem-list.component` |
+| FR-15 | Search / filter problems | `ProblemViewRepository.search` | `problem-list.component` |
+| FR-16 | Editorial, gated on solving it | `ProblemReadService.editorialFor` | `problem-detail.component` |
+| FR-20 | Contest registration | `ContestController`, `ContestService` | `contest-detail.component` |
 | FR-25 | Per-user solve statistics | `StatsController`, `StatsService` | `stats.component` |
 
 ## Run

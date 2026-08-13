@@ -49,6 +49,18 @@ public class ContestAccessService {
     }
 
     /**
+     * True if any contest using this problem has not ended — upcoming or running. Distinct from
+     * {@link #mayAccessProblem}: that answers "may this caller read the statement", which a
+     * registered participant can during the round. This answers "is the problem still contested at
+     * all", which is what content beyond the statement (an editorial) must key off, since revealing
+     * a solution to a participant mid-round is worse than revealing the statement.
+     */
+    @Transactional(readOnly = true)
+    public boolean isContested(Long problemId) {
+        return accessRepo.existsUnendedContestForProblem(problemId);
+    }
+
+    /**
      * May a contest use this problem? Only a draft nobody has been able to read, that no other
      * contest has claimed. Publication is one-way, so this never becomes true again once false.
      */

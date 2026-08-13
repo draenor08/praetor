@@ -1,10 +1,11 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
   BulkTestCaseInput,
   ManagedProblem,
   ProblemDetail,
+  ProblemFilter,
   ProblemFull,
   ProblemInput,
   ProblemSummary,
@@ -30,8 +31,32 @@ import { Leaderboard, UserRating } from '../models/rating.model';
 export class ApiService {
   private http = inject(HttpClient);
 
-  getProblems(): Observable<ProblemSummary[]> {
-    return this.http.get<ProblemSummary[]>('/api/problems');
+  /**
+   * The problem list, optionally filtered (FR-15). Only non-empty filters become query params, so
+   * an unfiltered call is byte-for-byte the request this method always made.
+   */
+  getProblems(filter?: ProblemFilter): Observable<ProblemSummary[]> {
+    let params = new HttpParams();
+    if (filter?.q?.trim()) {
+      params = params.set('q', filter.q.trim());
+    }
+    if (filter?.minDifficulty != null) {
+      params = params.set('minDifficulty', filter.minDifficulty);
+    }
+    if (filter?.maxDifficulty != null) {
+      params = params.set('maxDifficulty', filter.maxDifficulty);
+    }
+    // Repeated rather than comma-joined: a tag name is free text, and append() lets the server
+    // parse the list without having to pick a separator that names can never contain.
+    for (const tag of filter?.tags ?? []) {
+      params = params.append('tags', tag);
+    }
+    return this.http.get<ProblemSummary[]>('/api/problems', { params });
+  }
+
+  /** The tag vocabulary, for the filter control's options. */
+  getTags(): Observable<string[]> {
+    return this.http.get<string[]>('/api/tags');
   }
 
   getProblem(slug: string): Observable<ProblemDetail> {

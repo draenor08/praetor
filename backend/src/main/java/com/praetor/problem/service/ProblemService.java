@@ -7,6 +7,7 @@ import com.praetor.problem.dto.ProblemResponse;
 import com.praetor.problem.dto.ProblemUsageResponse;
 import com.praetor.problem.entity.Problem;
 import com.praetor.problem.repository.ProblemRepository;
+import com.praetor.problem.repository.ProblemTagRepository;
 import com.praetor.problem.repository.ProblemUsageRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,15 +27,22 @@ public class ProblemService {
     /** Accepted by the schema, rejected on write — the engine has no custom-checker runner. */
     private static final String SPECIAL = "SPECIAL";
 
+    /** Tag rules (FR-14): stored lowercase, and long enough for the schema's VARCHAR(40). */
+    private static final int MAX_TAGS_PER_PROBLEM = 8;
+    private static final int MAX_TAG_LENGTH = 40;
+
     private final ProblemRepository problemRepository;
     private final ProblemUsageRepository usageRepository;
+    private final ProblemTagRepository tagRepository;
 
     public ProblemService(
             ProblemRepository problemRepository,
-            ProblemUsageRepository usageRepository) {
+            ProblemUsageRepository usageRepository,
+            ProblemTagRepository tagRepository) {
 
         this.problemRepository = problemRepository;
         this.usageRepository = usageRepository;
+        this.tagRepository = tagRepository;
     }
 
     /**
@@ -126,8 +134,12 @@ public class ProblemService {
             problem.publish();
         }
 
-        return toResponse(
-                problemRepository.save(problem));
+        // save() first: the id is IDENTITY-generated, so it only exists once the row is inserted,
+        // and problem_tags needs it for the foreign key.
+        Problem saved = problemRepository.save(problem);
+        replaceTags(saved.getId(), request.tags());
+
+        return toResponse(saved);
     }
 
     @Transactional
@@ -189,8 +201,64 @@ public class ProblemService {
         problem.setEditorial(
                 request.editorial());
 
+        replaceTags(problem.getId(), request.tags());
+
         return toResponse(
                 problemRepository.save(problem));
+    }
+
+    /**
+     * Replaces a problem's tags. Null means "not part of this request" and leaves them alone, so a
+     * caller that predates tags cannot wipe them; an empty list is an explicit clear. Replace rather
+     * than merge, or a tag could never be removed.
+     */
+    private void replaceTags(Long problemId, List<String> requested) {
+        if (requested == null) {
+            return;
+        }
+
+        List<String> names = normalizeTags(requested);
+        tagRepository.deleteTagsOfProblem(problemId);
+        for (String name : names) {
+            tagRepository.insertTagIfAbsent(name);
+            Long tagId = tagRepository.findTagIdByName(name);
+            if (tagId != null) {
+                tagRepository.insertProblemTag(problemId, tagId);
+            }
+        }
+    }
+
+    /**
+     * Tag names are a shared vocabulary, so they are normalised on the way in — lowercased, trimmed,
+     * de-duplicated — rather than trusting each setter to type "Math" the same way twice.
+     */
+    private List<String> normalizeTags(List<String> requested) {
+
+        List<String> names = requested.stream()
+                .filter(t -> t != null && !t.isBlank())
+                .map(t -> t.trim().toLowerCase())
+                .distinct()
+                .toList();
+
+        if (names.size() > MAX_TAGS_PER_PROBLEM) {
+            throw badRequest(
+                    "at most " + MAX_TAGS_PER_PROBLEM + " tags per problem");
+        }
+
+        for (String name : names) {
+            if (name.length() > MAX_TAG_LENGTH) {
+                throw badRequest(
+                        "tag must be at most " + MAX_TAG_LENGTH + " characters: " + name);
+            }
+            // The list filter passes tags to SQL as one comma-separated string, so a comma inside a
+            // name would split into two filters and quietly widen every search that used it.
+            if (name.indexOf(',') >= 0) {
+                throw badRequest(
+                        "tag cannot contain a comma: " + name);
+            }
+        }
+
+        return names;
     }
 
     /**
@@ -475,6 +543,12 @@ public class ProblemService {
             throw badRequest(
                     "floatEps must be > 0 for FLOAT judge mode");
         }
+
+        // Checked here rather than inside replaceTags, which runs after the problem row is written:
+        // a rejected tag list should never have created a problem, even one a rollback would undo.
+        if (request.tags() != null) {
+            normalizeTags(request.tags());
+        }
     }
 
     private String normalizeSlug(String slug) {
@@ -527,6 +601,11 @@ public class ProblemService {
                 problem.getFloatEps(),
                 problem.getCheckerCode(),
                 problem.getEditorial(),
+                // Read back rather than echoed from the request, so the editor form reloads exactly
+                // what was stored after normalisation.
+                problem.getId() == null
+                        ? List.of()
+                        : tagRepository.findTagNamesByProblemId(problem.getId()),
                 problem.getCreatedBy(),
                 problem.isArchived());
     }

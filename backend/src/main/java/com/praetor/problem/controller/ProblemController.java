@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -37,15 +38,23 @@ public class ProblemController {
     }
 
     /**
-     * The problem list. Public (see {@link com.praetor.problem.config.ProblemWebSecurityConfig}) —
-     * the JWT is optional there, so {@code user} is null for an anonymous reader and the contest
-     * embargo applies.
+     * The problem list, with the FR-15 filters. Public (see
+     * {@link com.praetor.problem.config.ProblemWebSecurityConfig}) — the JWT is optional there, so
+     * {@code user} is null for an anonymous reader and the contest embargo applies.
+     *
+     * <p>Every parameter is optional and omitting all of them yields the full list, so the plain
+     * {@code GET /api/problems} contract is unchanged. Repeat {@code tags} to require several
+     * ({@code ?tags=math&tags=greedy} matches problems carrying both).
      */
     @GetMapping
     public List<ProblemSummary> list(
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal User user,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Integer minDifficulty,
+            @RequestParam(required = false) Integer maxDifficulty,
+            @RequestParam(required = false) List<String> tags) {
 
-        return readService.list(user);
+        return readService.list(user, q, minDifficulty, maxDifficulty, tags);
     }
 
     /** One problem's statement. Public, but embargoed problems are refused — see the read service. */

@@ -58,3 +58,93 @@
   border: 1px solid var(--border-color);
   color: var(--text-muted);
 }
+
+/* --- Filters (FR-15) ----------------------------------------------------- */
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.search-input {
+  flex: 1 1 18rem;
+  padding: 0.55rem 0.75rem;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-color);
+  font-size: 0.95rem;
+}
+
+.search-input:focus,
+.band-label select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.band-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.band-label select {
+  padding: 0.55rem 0.75rem;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-color);
+  font-size: 0.9rem;
+}
+
+.btn-clear {
+  padding: 0.55rem 0.9rem;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn-clear:hover {
+  color: var(--text-color);
+  border-color: var(--primary-color);
+}
+
+.tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* A tag chip doubles as a toggle here; selected state has to survive the shared .tag styling. */
+.tag-toggle {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.tag-toggle:hover {
+  color: var(--text-color);
+}
+
+.tag-toggle.selected {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #fff;
+}
+
+.col-tags .tag + .tag {
+  margin-left: 0.3rem;
+}
