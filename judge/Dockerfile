@@ -7,8 +7,11 @@
 FROM gcc:14
 
 # GNU `time` = /usr/bin/time (needed for -v: wall-clock + peak RSS %M). `timeout` is in
-# coreutils (already present in the base image). python3 = the PYTHON judge language.
-RUN apt-get update && apt-get install -y --no-install-recommends time python3 \
+# coreutils (already present in the base image). python3 = the PYTHON judge language,
+# default-jdk-headless = the JAVA one (headless: no AWT/Swing, which a judge never needs).
+# One image carries every toolchain — neither compiler exists in the backend image or on the host.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      time python3 default-jdk-headless \
  && rm -rf /var/lib/apt/lists/*
 
 # Unprivileged user; submissions never run as root inside the sandbox.

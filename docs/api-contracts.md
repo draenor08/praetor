@@ -281,7 +281,7 @@ Exceeded →
               {"ord":2,"verdict":"AC","timeMs":12,"memKb":2048} ] }
 ```
 Verdicts: `AC WA TLE MLE RE CE PE`. Status lifecycle: `QUEUED → JUDGING → DONE|ERROR`.
-Judging covers: sandboxed execution (FR-4), multi-language (FR-5), per-test-case verdict (FR-6), enforced limits (FR-7), async queue (FR-8), compile-error capture (FR-9), special/float judge (FR-11).
+Judging covers: sandboxed execution (FR-4), multi-language (FR-5), per-test-case verdict (FR-6), enforced limits (FR-7), async queue (FR-8), compile-error capture (FR-9), token/float checkers (FR-11 — `SPECIAL` is refused on write, see the problem module).
 
 **Rejudge (FR-27) — FROZEN.** Re-enqueues an existing submission through the pipeline (same source/language, fresh verdict). ADMIN only. Re-uses the submission id; resets `status→QUEUED`, clears prior verdict/results, then judges again. If the submission belongs to a contest, judging completion triggers a standings **recompute** (not just a delta) so a flipped verdict (e.g. WA→AC) propagates to the board.
 ```json
@@ -290,7 +290,21 @@ Judging covers: sandboxed execution (FR-4), multi-language (FR-5), per-test-case
 // 403 if caller not ADMIN, 404 if submission id unknown
 ```
 
-**Multi-language (FR-5) — scope:** `language ∈ {CPP, PYTHON}` for the committed build (`JAVA` is a documented seam, deferred). Per-language time/memory multipliers are applied over the problem's `timeLimitMs`/`memLimitKb` so an interpreted language isn't falsely TLE/MLE'd.
+**Multi-language (FR-5) — FROZEN.** `language ∈ {CPP, PYTHON, JAVA}`. Per-language time/memory
+multipliers are applied over the problem's `timeLimitMs`/`memLimitKb`, because limits are authored
+C++-first and a slower runtime would otherwise be falsely TLE'd or MLE'd:
+
+| Language | Source file | Time × | Memory × |
+|---|---|---|---|
+| `CPP` | `main.cpp` | 1.0 | 1.0 |
+| `PYTHON` | `main.py` | 3.0 | 2.0 |
+| `JAVA` | `Main.java` | 3.0 | 3.0 |
+
+> **`JAVA` submissions must declare `public class Main`** — javac ties the class name to the file
+> name, and the file is always written as `Main.java`. A mismatch compiles to a `CE` whose message
+> names the problem, so it needs no special handling. The JVM runs with `-XX:+UseSerialGC` (the
+> sandbox enforces `--pids-limit`, and a parallel-GC JVM can exhaust that budget before `main()`
+> starts) and `-Xss64m` for recursion depth comparable to C++'s default stack.
 
 ---
 
