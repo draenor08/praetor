@@ -24,6 +24,8 @@
       </td>
       <td class="col-status">
         <span class="status-pill status-{{ status(c) }}">{{ status(c) }}</span>
+        <app-countdown class="row-countdown" [startsAt]="c.startsAt" [endsAt]="c.endsAt"
+                       [serverNow]="c.serverNow" (phaseChange)="onPhaseChange()"></app-countdown>
       </td>
       <td class="col-when num">{{ c.startsAt | date:'MMM d, HH:mm' }}</td>
       <td class="col-when num">{{ c.endsAt | date:'MMM d, HH:mm' }}</td>

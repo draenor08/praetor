@@ -40,8 +40,10 @@
   color: var(--text-muted);
 }
 
+/* Markdown is rendered to real blocks now (see RichTextComponent), so the pre-wrap that used to
+   carry the line breaks of a plain-text statement would double every gap. */
 .statement-body {
-  white-space: pre-wrap;
+  display: block;
   line-height: 1.6;
   color: var(--text-color);
 }

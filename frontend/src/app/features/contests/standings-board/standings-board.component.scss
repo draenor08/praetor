@@ -99,6 +99,44 @@
 }
 
 .c-solved { color: #58c17a; background: rgba(88, 193, 122, 0.12); }
+
+/* First to solve the column: a brighter, outlined version of the solved cell, so it reads as
+   "accepted, and notably so" rather than as a fourth verdict colour. */
+.c-first {
+  background: rgba(88, 193, 122, 0.26);
+  box-shadow: inset 0 0 0 1px #58c17a;
+}
+
+.c-first small {
+  color: #8fd8a6;
+}
+
 .c-fail   { color: #ef5b5b; background: rgba(239, 91, 91, 0.12); }
+
+/* ---- Legend ---- */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.7rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.legend b {
+  color: var(--text-soft);
+}
+
+.legend-swatch {
+  min-width: 0;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.75rem;
+}
+
+.legend-sep {
+  color: var(--border-color);
+}
+
 .c-frozen { color: var(--primary-color); background: rgba(99, 102, 241, 0.14); }
 .c-none   { color: var(--text-muted); background: transparent; }

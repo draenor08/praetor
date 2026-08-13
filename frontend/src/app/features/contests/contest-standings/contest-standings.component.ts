@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { ContestDetail } from '../../../core/models/contest.model';
 import { StandingsLiveComponent } from '../standings-live/standings-live.component';
+import { CountdownComponent } from '../../../shared/components/countdown/countdown.component';
 
 /**
  * One contest's standings on its own page, reached from the Standings section. The contest is
@@ -13,7 +14,7 @@ import { StandingsLiveComponent } from '../standings-live/standings-live.compone
 @Component({
   selector: 'app-contest-standings',
   standalone: true,
-  imports: [CommonModule, RouterModule, StandingsLiveComponent],
+  imports: [CommonModule, RouterModule, StandingsLiveComponent, CountdownComponent],
   templateUrl: './contest-standings.component.html',
   styleUrls: ['./contest-standings.component.scss']
 })

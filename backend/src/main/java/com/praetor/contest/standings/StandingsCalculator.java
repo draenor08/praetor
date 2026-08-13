@@ -61,35 +61,52 @@ public class StandingsCalculator {
         }
 
         List<StandingsRow> rows = new ArrayList<>();
+        // Parallel to `rows`: the exact AC instant per problem column, or null. Cells only carry
+        // whole minutes, and two people can solve inside the same minute, so the first-solve pass
+        // needs the unrounded timestamps to pick one.
+        List<List<Instant>> acceptedAt = new ArrayList<>();
         for (Map.Entry<Long, String> participant : participants.entrySet()) {
             Long userId = participant.getKey();
             Map<Long, List<StandingsSubmissionRow>> perProblem =
                     byUserProblem.getOrDefault(userId, Map.of());
 
             List<ProblemCell> cells = new ArrayList<>();
+            List<Instant> acs = new ArrayList<>();
             int solved = 0;
             int penalty = 0;
             for (ContestProblemDto p : problems) {
-                ProblemCell cell = cellFor(p, perProblem.getOrDefault(p.problemId(), List.of()),
+                CellFold fold = cellFor(p, perProblem.getOrDefault(p.problemId(), List.of()),
                         startsAt, endsAt, freezeStart, hide);
+                ProblemCell cell = fold.cell();
                 cells.add(cell);
+                acs.add(fold.acceptedAt());
                 if (cell.solvedAtMin() != null) {
                     solved++;
                     penalty += cell.solvedAtMin() + PENALTY_PER_REJECT * cell.attempts();
                 }
             }
             rows.add(new StandingsRow(0, participant.getValue(), solved, penalty, cells));
+            acceptedAt.add(acs);
         }
 
+        markFirstSolves(rows, acceptedAt, problems.size());
         rank(rows);
         return new StandingsResponse(contestId, freezeActive, now.toString(), rows);
     }
 
+    /**
+     * One folded cell plus the exact instant of its accepted submission ({@code null} if unsolved on
+     * this board). The instant never leaves the calculator — it exists only to order first solves.
+     */
+    private record CellFold(ProblemCell cell, Instant acceptedAt) {
+    }
+
     /** Fold one participant's submissions for one problem into a cell. */
-    private ProblemCell cellFor(ContestProblemDto p, List<StandingsSubmissionRow> subs,
-                                Instant startsAt, Instant endsAt, Instant freezeStart, boolean hide) {
+    private CellFold cellFor(ContestProblemDto p, List<StandingsSubmissionRow> subs,
+                             Instant startsAt, Instant endsAt, Instant freezeStart, boolean hide) {
         int attempts = 0;
         Integer solvedAtMin = null;
+        Instant acceptedAt = null;
         boolean hasHiddenActivity = false;
 
         for (StandingsSubmissionRow s : subs) {
@@ -107,13 +124,42 @@ public class StandingsCalculator {
             }
             if (AC.equals(s.getVerdict())) {
                 solvedAtMin = (int) Duration.between(startsAt, t).toMinutes();
+                acceptedAt = t;
             } else if (!CE.equals(s.getVerdict())) {
                 attempts++;
             }
         }
 
         boolean frozen = hide && solvedAtMin == null && hasHiddenActivity;
-        return new ProblemCell(p.label(), attempts, solvedAtMin, frozen);
+        return new CellFold(new ProblemCell(p.label(), attempts, solvedAtMin, frozen, false), acceptedAt);
+    }
+
+    /**
+     * Flag the earliest accept in each problem column. Only accepts this board can see are eligible,
+     * so a frozen board awards it among pre-freeze solves — see {@link ProblemCell#firstSolve()}.
+     * Exact instants break same-minute ties; identical instants keep the earlier participant, so the
+     * result is deterministic rather than dependent on map iteration.
+     */
+    private void markFirstSolves(List<StandingsRow> rows, List<List<Instant>> acceptedAt, int problemCount) {
+        for (int col = 0; col < problemCount; col++) {
+            int winner = -1;
+            Instant earliest = null;
+            for (int r = 0; r < rows.size(); r++) {
+                Instant at = acceptedAt.get(r).get(col);
+                if (at != null && (earliest == null || at.isBefore(earliest))) {
+                    earliest = at;
+                    winner = r;
+                }
+            }
+            if (winner < 0) {
+                continue; // nobody solved this one
+            }
+            StandingsRow row = rows.get(winner);
+            List<ProblemCell> cells = new ArrayList<>(row.problems());
+            ProblemCell c = cells.get(col);
+            cells.set(col, new ProblemCell(c.label(), c.attempts(), c.solvedAtMin(), c.frozen(), true));
+            rows.set(winner, new StandingsRow(row.rank(), row.handle(), row.solved(), row.penalty(), cells));
+        }
     }
 
     /** Sort by solved desc, penalty asc; ties (equal solved AND penalty) share a rank number. */

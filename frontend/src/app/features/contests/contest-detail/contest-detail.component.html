@@ -19,6 +19,13 @@
     <div><dt>Starts</dt><dd class="num">{{ c.startsAt | date:'MMM d, HH:mm' }}</dd></div>
     <div><dt>Ends</dt><dd class="num">{{ c.endsAt | date:'MMM d, HH:mm' }}</dd></div>
     <div *ngIf="c.freezeMin > 0"><dt>Freeze</dt><dd class="num">last {{ c.freezeMin }} min</dd></div>
+    <div>
+      <dt>Clock</dt>
+      <dd>
+        <app-countdown [startsAt]="c.startsAt" [endsAt]="c.endsAt" [serverNow]="c.serverNow"
+                       (phaseChange)="onPhaseChange()"></app-countdown>
+      </dd>
+    </div>
   </dl>
 
   <h3 class="results-title">Problems</h3>

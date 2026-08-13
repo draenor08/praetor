@@ -176,24 +176,25 @@ praetor/
 │           │   ├── interceptors/
 │           │   │   ├── jwt.interceptor.ts
 │           │   │   └── error.interceptor.ts
+│           │   ├── models/
+│           │   │   ├── problem.model.ts
+│           │   │   ├── submission.model.ts
+│           │   │   ├── contest.model.ts
+│           │   │   ├── standings.model.ts
+│           │   │   └── rating.model.ts
 │           │   └── services/
+│           │       ├── api.service.ts
 │           │       ├── auth.service.ts
-│           │       └── token.service.ts
+│           │       ├── token.service.ts
+│           │       └── ws.service.ts
 │           ├── shared/
 │           │   ├── components/
 │           │   │   ├── navbar/navbar.component.ts
-│           │   │   ├── footer/footer.component.ts
-│           │   │   ├── spinner/spinner.component.ts
-│           │   │   ├── verdict-badge/verdict-badge.component.ts
-│           │   │   └── pagination/pagination.component.ts
-│           │   ├── toast/
-│           │   │   ├── toast.service.ts
-│           │   │   └── toast.component.ts
-│           │   └── models/
-│           │       ├── problem.model.ts
-│           │       ├── submission.model.ts
-│           │       ├── contest.model.ts
-│           │       └── user.model.ts
+│           │   │   ├── coming-soon/coming-soon.component.ts
+│           │   │   ├── countdown/countdown.component.ts
+│           │   │   └── rich-text/rich-text.component.ts
+│           │   ├── contest-clock.ts
+│           │   └── markdown/markdown.ts
 │           └── features/
 │               ├── auth/
 │               │   ├── login/login.component.ts

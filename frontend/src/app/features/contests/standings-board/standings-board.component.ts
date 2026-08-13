@@ -20,10 +20,13 @@ export class StandingsBoardComponent {
   @Input() problems: ContestProblem[] = [];
   @Input() myHandle: string | null = null;
 
-  /** Visual class for a problem cell by its state. */
+  /**
+   * Visual class for a problem cell by its state. A first solve is a MODIFIER on the solved state,
+   * not a state of its own — the cell still has to read as accepted first.
+   */
   cellClass(cell: ProblemCell): string {
     if (cell.solvedAtMin != null) {
-      return 'c-solved';
+      return cell.firstSolve ? 'c-solved c-first' : 'c-solved';
     }
     if (cell.frozen) {
       return 'c-frozen';

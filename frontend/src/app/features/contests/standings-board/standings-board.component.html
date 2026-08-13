@@ -23,7 +23,8 @@
         <td class="col-num num">{{ row.solved }}</td>
         <td class="col-num num muted">{{ row.penalty }}</td>
         <td class="col-prob" *ngFor="let cell of row.problems">
-          <span class="st-cell" [ngClass]="cellClass(cell)">
+          <span class="st-cell" [ngClass]="cellClass(cell)"
+                [attr.title]="cell.firstSolve ? 'First to solve this problem' : null">
             {{ cellMain(cell) }}
             <small *ngIf="cellSub(cell)">{{ cellSub(cell) }}</small>
           </span>
@@ -34,4 +35,15 @@
       </tr>
     </tbody>
   </table>
+
+  <p class="legend">
+    <span class="st-cell c-solved c-first legend-swatch">+</span>
+    first to solve that problem
+    <span class="legend-sep">·</span>
+    <b>+n</b> solved after n rejected tries
+    <span class="legend-sep">·</span>
+    <b>−n</b> unsolved after n tries
+    <span class="legend-sep">·</span>
+    <b>?</b> pending, hidden by the freeze
+  </p>
 </div>

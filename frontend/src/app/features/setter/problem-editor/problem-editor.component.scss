@@ -147,3 +147,38 @@
   border-color: var(--primary-color);
   color: var(--text-color);
 }
+
+/* --- statement preview --- */
+
+.preview-toggle {
+  margin-left: 0.6rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.preview-toggle:hover {
+  color: var(--text-color);
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.preview-pane {
+  padding: 0.9rem 1rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  background: var(--background-color);
+}
+
+.preview-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

@@ -7,6 +7,11 @@ export interface ContestSummary {
   scoring: string;
   /** Setters may currently propose problems for this contest. */
   callsOpen: boolean;
+  /**
+   * The server instant this response was built at. Time-relative UI measures against this, not the
+   * browser clock — the backend's window rules are what it is describing. See shared/contest-clock.
+   */
+  serverNow: string;
 }
 
 /**
@@ -37,6 +42,8 @@ export interface ContestDetail {
   /** Do the slots carry slug + title, i.e. may the caller open the statements yet. */
   problemsVisible: boolean;
   problems: ContestProblem[];
+  /** Server instant of this response — same contract as on {@link ContestSummary}. */
+  serverNow: string;
 }
 
 /** A draft problem a contest may still use. */
