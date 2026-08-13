@@ -6,11 +6,12 @@ import { Subscription } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { WsService } from '../../../core/services/ws.service';
 import { ProblemDetail } from '../../../core/models/problem.model';
+import { RichTextComponent } from '../../../shared/components/rich-text/rich-text.component';
 
 @Component({
   selector: 'app-problem-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, RichTextComponent],
   templateUrl: './problem-detail.component.html',
   styleUrls: ['./problem-detail.component.scss']
 })

@@ -41,16 +41,33 @@
   </div>
 
   <div class="field">
-    <label for="statement">Statement <span class="hint-inline">markdown</span></label>
+    <label for="statement">
+      Statement <span class="hint-inline">markdown + LaTeX</span>
+      <button type="button" class="preview-toggle" (click)="showPreview = !showPreview">
+        {{ showPreview ? 'Hide preview' : 'Preview' }}
+      </button>
+    </label>
     <textarea id="statement" name="statement" rows="10" [(ngModel)]="form.statement"
-              placeholder="Read two integers a and b on one line. Output their sum."></textarea>
+              placeholder="Read two integers $a$ and $b$ on one line. Output their sum."></textarea>
+    <span class="hint">
+      <b>**bold**</b> · <i>*italic*</i> · <code>`code`</code> · fenced ```blocks``` · <code>-</code>
+      lists · <code>#</code> headings · <code>[text](https://…)</code> · maths as
+      <code>$a \le 10^9$</code> inline or <code>$$\sum a_i$$</code> on its own line. Anything else
+      is literal text — HTML is never rendered.
+    </span>
     <span class="field-error" *ngIf="errors['statement']">{{ errors['statement'] }}</span>
   </div>
 
+  <!-- Rendered by the same component the problem page uses, so this preview cannot drift from it. -->
+  <div class="field preview-pane" *ngIf="showPreview">
+    <span class="preview-label">Preview</span>
+    <app-rich-text [source]="form.statement"></app-rich-text>
+  </div>
+
   <div class="field">
-    <label for="constraints">Constraints <span class="hint-inline">optional</span></label>
+    <label for="constraints">Constraints <span class="hint-inline">optional, same markdown</span></label>
     <textarea id="constraints" name="constraints" rows="3" [(ngModel)]="form.constraints"
-              placeholder="-10^9 &lt;= a, b &lt;= 10^9"></textarea>
+              placeholder="$-10^9 \le a, b \le 10^9$"></textarea>
   </div>
 
   <div class="field-row">
@@ -111,7 +128,7 @@
   </div>
 
   <div class="field">
-    <label for="editorial">Editorial <span class="hint-inline">optional, markdown</span></label>
+    <label for="editorial">Editorial <span class="hint-inline">optional, same markdown</span></label>
     <textarea id="editorial" name="editorial" rows="6" [(ngModel)]="form.editorial"></textarea>
     <span class="hint">
       Shown to a contestant only after they solve this problem, and never while a contest is using

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { ProblemInput } from '../../../core/models/problem.model';
+import { RichTextComponent } from '../../../shared/components/rich-text/rich-text.component';
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -28,7 +29,7 @@ const MAX_TAGS = 8;
 @Component({
   selector: 'app-problem-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, RichTextComponent],
   templateUrl: './problem-editor.component.html',
   styleUrls: ['./problem-editor.component.scss']
 })
@@ -38,6 +39,9 @@ export class ProblemEditorComponent implements OnInit {
   private router = inject(Router);
 
   readonly judgeModes = ['EXACT', 'TOKEN', 'FLOAT'];
+
+  /** Statement preview, off by default — the textarea is what a setter is usually looking at. */
+  showPreview = false;
 
   /** null while creating; the original slug while editing (the slug itself is editable). */
   originalSlug: string | null = null;

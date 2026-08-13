@@ -17,11 +17,11 @@
       <span class="tag" *ngFor="let tag of problem.tags">{{ tag }}</span>
     </div>
 
-    <p class="statement-body">{{ problem.statement }}</p>
+    <app-rich-text class="statement-body" [source]="problem.statement"></app-rich-text>
 
     <div *ngIf="problem.constraints" class="constraints">
       <h3>Constraints</h3>
-      <p class="statement-body">{{ problem.constraints }}</p>
+      <app-rich-text class="statement-body" [source]="problem.constraints"></app-rich-text>
     </div>
 
     <div *ngIf="problem.samples.length" class="samples">
@@ -45,7 +45,7 @@
     -->
     <details *ngIf="problem.editorial" class="editorial">
       <summary>Editorial</summary>
-      <p class="statement-body">{{ problem.editorial }}</p>
+      <app-rich-text class="statement-body" [source]="problem.editorial"></app-rich-text>
     </details>
   </section>
 

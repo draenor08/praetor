@@ -24,7 +24,10 @@
                 "output": "assets/monaco/vs"
               }
             ],
-            "styles": ["src/styles.scss"],
+            "styles": [
+              "src/styles.scss",
+              "node_modules/katex/dist/katex.min.css"
+            ],
             "scripts": []
           },
           "configurations": {
