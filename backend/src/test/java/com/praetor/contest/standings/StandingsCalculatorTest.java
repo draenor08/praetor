@@ -36,6 +36,17 @@ class StandingsCalculatorTest {
         };
     }
 
+    /** As {@link #sub}, with second precision — first-solve ties inside one minute need it. */
+    private static StandingsSubmissionRow subAt(long u, long p, String verdict, int min, int sec) {
+        Instant t = START.plus(Duration.ofMinutes(min)).plus(Duration.ofSeconds(sec));
+        return new StandingsSubmissionRow() {
+            public Long getUserId() { return u; }
+            public Long getProblemId() { return p; }
+            public String getVerdict() { return verdict; }
+            public Instant getCreatedAt() { return t; }
+        };
+    }
+
     private static LinkedHashMap<Long, String> participants(Object... idHandlePairs) {
         LinkedHashMap<Long, String> m = new LinkedHashMap<>();
         for (int i = 0; i < idHandlePairs.length; i += 2) {
@@ -188,6 +199,60 @@ class StandingsCalculatorTest {
         StandingsResponse board = compute(subs, 30, false, 50, participants(10L, "alice"));
         assertThat(board.frozen()).isFalse();
         assertThat(cell(rowOf(board, "alice"), "A").solvedAtMin()).isEqualTo(40);
+    }
+
+    // ---- first solve ----
+
+    @Test
+    void firstSolveMarksTheEarliestAcceptInEachColumn() {
+        List<StandingsSubmissionRow> subs = List.of(
+                sub(10, 100, "AC", 12),   // alice A @12
+                sub(20, 100, "AC", 5),    // bob   A @5  <- first on A
+                sub(10, 200, "AC", 40));  // alice B @40 <- only solve on B
+        StandingsResponse board = compute(subs, 0, false, 60,
+                participants(10L, "alice", 20L, "bob"));
+
+        assertThat(cell(rowOf(board, "bob"), "A").firstSolve()).isTrue();
+        assertThat(cell(rowOf(board, "alice"), "A").firstSolve()).isFalse();
+        assertThat(cell(rowOf(board, "alice"), "B").firstSolve()).isTrue();
+    }
+
+    @Test
+    void firstSolveBreaksSameMinuteTiesOnTheExactInstant() {
+        // Both cells read "10 min"; only the earlier submission is the first solve.
+        List<StandingsSubmissionRow> subs = List.of(
+                subAt(10, 100, "AC", 10, 45),
+                subAt(20, 100, "AC", 10, 5));
+        StandingsResponse board = compute(subs, 0, false, 60,
+                participants(10L, "alice", 20L, "bob"));
+
+        assertThat(cell(rowOf(board, "alice"), "A").solvedAtMin()).isEqualTo(10);
+        assertThat(cell(rowOf(board, "bob"), "A").solvedAtMin()).isEqualTo(10);
+        assertThat(cell(rowOf(board, "bob"), "A").firstSolve()).isTrue();
+        assertThat(cell(rowOf(board, "alice"), "A").firstSolve()).isFalse();
+    }
+
+    @Test
+    void unsolvedColumnHasNoFirstSolve() {
+        List<StandingsSubmissionRow> subs = List.of(sub(10, 100, "WA", 5));
+        StandingsResponse board = compute(subs, 0, false, 60, participants(10L, "alice"));
+        assertThat(cell(rowOf(board, "alice"), "A").firstSolve()).isFalse();
+        assertThat(cell(rowOf(board, "alice"), "B").firstSolve()).isFalse();
+    }
+
+    @Test
+    void frozenBoardAwardsFirstSolveOnlyAmongAcceptsItCanSee() {
+        // The only AC on A lands inside the freeze window (@95, freezeStart @90).
+        List<StandingsSubmissionRow> subs = List.of(sub(10, 100, "AC", 95));
+
+        StandingsResponse contestantBoard = compute(subs, 30, false, 100, participants(10L, "alice"));
+        assertThat(cell(rowOf(contestantBoard, "alice"), "A").frozen()).isTrue();
+        assertThat(cell(rowOf(contestantBoard, "alice"), "A").firstSolve())
+                .as("a hidden accept must not be announced as the first solve")
+                .isFalse();
+
+        StandingsResponse staffBoard = compute(subs, 30, true, 100, participants(10L, "alice"));
+        assertThat(cell(rowOf(staffBoard, "alice"), "A").firstSolve()).isTrue();
     }
 
     @Test

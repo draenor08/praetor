@@ -7,6 +7,11 @@ export interface ProblemCell {
   solvedAtMin: number | null;
   /** True = post-freeze activity hidden from this viewer (render pending "?"). */
   frozen: boolean;
+  /**
+   * True on the one cell that solved this problem earliest on THIS board. Server-computed from the
+   * cells this viewer may see, so a frozen board can only award it among pre-freeze accepts.
+   */
+  firstSolve: boolean;
 }
 
 /** One row of the ICPC board. */
