@@ -428,7 +428,13 @@ Standings use ICPC-style scoring with penalty (FR-19) and freeze the last N minu
 - `attempts` = rejected submissions **before** the AC (AC-attempt not counted); `solvedAtMin` = minutes from contest start to the accepted submission, `null` if unsolved.
 - `frozen:true` on a problem cell = there is post-freeze activity hidden from this viewer (show as "?"/pending).
 
-**ICPC scoring rule — FROZEN (FR-19):** rank by `solved` desc, then `penalty` asc. `penalty = Σ over solved problems (solvedAtMin + 20 × rejectedAttemptsBeforeAC)`. **CE does not count** as a rejected attempt. Unsolved problems contribute nothing. `scoring='POINTS'` contests are **deferred** (schema supports it; the committed build renders ICPC only).
+**ICPC scoring rule — FROZEN (FR-19):** rank by `solved` desc, then `penalty` asc. `penalty = Σ over solved problems (solvedAtMin + 20 × rejectedAttemptsBeforeAC)`. **CE does not count** as a rejected attempt. Unsolved problems contribute nothing.
+
+> **`scoring='POINTS'` is rejected with `400` on contest creation.** The schema CHECK and the
+> request pattern still accept the value so an existing row reads, but `StandingsCalculator`
+> implements ICPC only — accepting a POINTS contest would score it by ICPC rules while calling
+> itself POINTS, and a scoreboard that misrepresents its own rules is worse than a refused request.
+> Same treatment as the unimplemented `SPECIAL` judge mode.
 
 **Freeze rule — FROZEN (FR-21):** during the last `contests.freeze_min` minutes, standings changes are hidden from non-privileged viewers on **both** the snapshot and the live WS stream — the publisher is freeze-aware per recipient (contestants see the frozen board; ADMIN/PROBLEM_SETTER see live). A single unfiltered broadcast would leak post-freeze results and is not allowed.
 
