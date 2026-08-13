@@ -118,6 +118,16 @@ the FR-16 gate below):
 ```
 `tags` is always present and never null — an untagged problem sends `[]`.
 
+**Problem prose is Markdown + LaTeX — FROZEN (client-side).** `statement`, `constraints` and
+`editorial` are stored and served **verbatim**: the server neither renders nor sanitises them, and
+this is not a server contract about their content. Rendering belongs to the client
+(`shared/markdown/markdown.ts` + `RichTextComponent`), which escapes the author's text first and then
+emits its own closed tag set, so **author HTML is never rendered** — it shows as literal characters.
+Supported: `#`–`###` headings, `**bold**`, `*italic*`, `` `code` ``, fenced blocks, `-`/`1.` lists,
+`> quotes`, `[text](url)` for `http(s)`/`mailto`/root-relative URLs only, `$inline maths$` and
+`$$display maths$$` via KaTeX (a lazy chunk, loaded on first problem page). Anything else is text. A
+single newline inside a paragraph is a line break, because these fields are authored in a textarea.
+
 **Validation** (`POST`/`PUT`, all `400`): slug required, lowercased/trimmed, must match
 `^[a-z0-9]+(?:-[a-z0-9]+)*$`, ≤80 chars · title required, ≤200 · statement required ·
 `difficulty` 0–4000 (default 800) · `timeLimitMs` ≥1 (default 1000) · `memLimitKb` ≥1
@@ -384,8 +394,8 @@ C++-first and a slower runtime would otherwise be falsely TLE'd or MLE'd:
 | Method | Path | Auth | Notes |
 |---|---|---|---|
 | POST | `/api/contests` | ADMIN | create; time window + problem set (FR-17). `problems` may be empty **only** with `callsOpen:true` |
-| GET  | `/api/contests` | any | list (meta only: `id,title,startsAt,endsAt,scoring,callsOpen`) |
-| GET  | `/api/contests/{id}` | any | meta + problem slots + `registered` + `problemsVisible` + `callsOpen` |
+| GET  | `/api/contests` | any | list (meta only: `id,title,startsAt,endsAt,scoring,callsOpen,serverNow`) |
+| GET  | `/api/contests/{id}` | any | meta + problem slots + `registered` + `problemsVisible` + `callsOpen` + `serverNow` |
 | GET  | `/api/contests/{id}/standings` | any | snapshot; respects freeze (FR-18, FR-19, FR-21) |
 | POST | `/api/contests/{id}/register` | USER | `{virtual:false}` (FR-20) |
 | GET  | `/api/contests/eligible-problems` | staff | draft problems a contest may still use |
@@ -401,6 +411,13 @@ standings board needs its columns even for a spectator, but `slug` and `title` a
 the embargo applies** — withheld server-side, so a hidden statement is not reachable from the page's
 own payload. `problemsVisible` says which of the two shapes you got; `registered` is `false` for an
 anonymous reader.
+
+**`serverNow` — FROZEN.** Both contest reads carry the server instant the response was built at. The
+embargo, the standings freeze and the publish-on-end sweep are all decided server-side against
+`now()`, so any client that displays time-relative state (a countdown, a Running/Upcoming/Ended pill)
+must measure against this value, not the browser clock — a skewed client would otherwise contradict
+the API it is talking to. It is a constant offset, measured once per payload; the list sends one
+instant for every row so two rows cannot disagree about which contest is live.
 
 **Problem sourcing — FROZEN.** A contest is built from the eligible pool (drafts, never published,
 unclaimed) or by opening a **call for problems**: setters propose, and the **admin decides**.
@@ -420,13 +437,14 @@ Standings use ICPC-style scoring with penalty (FR-19) and freeze the last N minu
   "rows": [
     { "rank": 1, "handle": "alice", "solved": 2, "penalty": 45,
       "problems": [
-        {"label":"A","attempts":1,"solvedAtMin":12,"frozen":false},
-        {"label":"B","attempts":3,"solvedAtMin":33,"frozen":false},
-        {"label":"C","attempts":2,"solvedAtMin":null,"frozen":true}
+        {"label":"A","attempts":1,"solvedAtMin":12,"frozen":false,"firstSolve":true},
+        {"label":"B","attempts":3,"solvedAtMin":33,"frozen":false,"firstSolve":false},
+        {"label":"C","attempts":2,"solvedAtMin":null,"frozen":true,"firstSolve":false}
       ] } ] }
 ```
 - `attempts` = rejected submissions **before** the AC (AC-attempt not counted); `solvedAtMin` = minutes from contest start to the accepted submission, `null` if unsolved.
 - `frozen:true` on a problem cell = there is post-freeze activity hidden from this viewer (show as "?"/pending).
+- `firstSolve:true` marks the earliest accepted submission in that problem's column — **computed from the cells this board contains**, so a frozen board can only award it among pre-freeze accepts, and it may move once the freeze lifts. Naming the true first solve during a freeze would leak through it. Ties inside the same minute are broken on the exact instant, which never leaves the server.
 
 **ICPC scoring rule — FROZEN (FR-19):** rank by `solved` desc, then `penalty` asc. `penalty = Σ over solved problems (solvedAtMin + 20 × rejectedAttemptsBeforeAC)`. **CE does not count** as a rejected attempt. Unsolved problems contribute nothing.
 
