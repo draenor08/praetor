@@ -6,6 +6,7 @@ import { ApiService } from '../../../core/services/api.service';
 import { WsService } from '../../../core/services/ws.service';
 import { TokenService } from '../../../core/services/token.service';
 import { SubmissionResponse } from '../../../core/models/submission.model';
+import { ToastService } from '../../../shared/toast/toast.service';
 
 @Component({
   selector: 'app-submission-detail',
@@ -19,6 +20,7 @@ export class SubmissionDetailComponent implements OnInit, OnDestroy {
   private ws = inject(WsService);
   private tokenService = inject(TokenService);
   private route = inject(ActivatedRoute);
+  private toast = inject(ToastService);
 
   private id!: number;
   private liveSub?: Subscription;
@@ -45,6 +47,7 @@ export class SubmissionDetailComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.error = 'Could not load this submission.';
+        this.toast.error('Could not load submission.');
         this.loading = false;
       }
     });
@@ -75,6 +78,7 @@ export class SubmissionDetailComponent implements OnInit, OnDestroy {
       error: () => {
         this.rejudging = false;
         this.error = 'Rejudge failed.';
+        this.toast.error('Could not rejudge submission.');
       }
     });
   }

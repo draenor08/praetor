@@ -1,0 +1,15 @@
+<div class="toast-container" aria-live="polite" aria-atomic="false">
+  @for (toast of (toasts | async) ?? []; track toast.id) {
+    <div class="toast toast--{{ toast.type }}" role="status" aria-live="polite">
+      <div class="toast__icon" aria-hidden="true">{{ iconFor(toast) }}</div>
+      <div class="toast__message">{{ toast.message }}</div>
+      <button
+        type="button"
+        class="toast__close"
+        aria-label="Dismiss notification"
+        (click)="dismiss(toast.id)">
+        ×
+      </button>
+    </div>
+  }
+</div>

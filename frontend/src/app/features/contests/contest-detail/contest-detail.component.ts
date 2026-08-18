@@ -7,6 +7,7 @@ import { ContestDetail } from '../../../core/models/contest.model';
 import { StandingsLiveComponent } from '../standings-live/standings-live.component';
 import { CountdownComponent } from '../../../shared/components/countdown/countdown.component';
 import { phaseOf, serverNowMs, serverSkewMs } from '../../../shared/contest-clock';
+import { ToastService } from '../../../shared/toast/toast.service';
 
 /**
  * Contest page: meta, the problem set, registration, and the live ICPC standings board.
@@ -27,6 +28,7 @@ export class ContestDetailComponent implements OnInit {
   private api = inject(ApiService);
   private tokenService = inject(TokenService);
   private route = inject(ActivatedRoute);
+  private toast = inject(ToastService);
 
   contestId!: number;
   contest?: ContestDetail;
@@ -105,6 +107,7 @@ export class ContestDetailComponent implements OnInit {
       next: () => {
         this.registering = false;
         this.registerMsg = 'Registered ✓';
+        this.toast.success('Registered for contest.');
         // Re-fetch rather than flip the flag locally: whether the problems are now visible is the
         // backend's call (a contest that has not started yet still withholds them).
         this.load();
@@ -112,6 +115,7 @@ export class ContestDetailComponent implements OnInit {
       error: (err) => {
         this.registering = false;
         this.registerMsg = err?.status === 409 ? 'Already registered' : 'Registration failed';
+        this.toast.error('Could not register for contest.');
         if (err?.status === 409) {
           this.load();
         }
