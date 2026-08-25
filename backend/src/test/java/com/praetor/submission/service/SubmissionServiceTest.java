@@ -395,4 +395,85 @@ class SubmissionServiceTest {
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("page must be >= 0");
     }
+
+    private User problemSetter() {
+        User u = new User();
+        u.setId(3L);
+        u.setUsername("setter01");
+        u.setRole("PROBLEM_SETTER");
+        return u;
+    }
+
+    /**
+     * The contract calls this endpoint owner/staff, and PROBLEM_SETTER is staff everywhere else in
+     * the product — it already sees through a standings freeze. Testing for ADMIN by name locked it
+     * out, which is the same mistake ProblemAuthz exists to prevent.
+     */
+    @Test
+    void history_problemSetterCountsAsStaffAndMayViewAnotherUser() {
+        User other = new User();
+        other.setId(99L);
+        other.setUsername("bob");
+        other.setRole("USER");
+        when(userRepo.findByUsername("bob")).thenReturn(Optional.of(other));
+        when(subRepo.findHistoryPage(eq(99L), any(), any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        SubmissionPage page = service.history(problemSetter(), "bob", null, null, 0, 20);
+
+        assertThat(page.totalElements()).isZero();
+        verify(subRepo).findHistoryPage(eq(99L), any(), any(), any(Pageable.class));
+    }
+
+    @Test
+    void history_problemSetterWithNoHandleIsNotPinnedToTheirOwnRows() {
+        when(subRepo.findHistoryPage(eq(null), any(), any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        service.history(problemSetter(), null, null, null, 0, 20);
+
+        // Null userId = every user's rows, which is what staff filtering means here.
+        verify(subRepo).findHistoryPage(eq(null), any(), any(), any(Pageable.class));
+    }
+
+    /**
+     * Authorising after the lookup would answer 404 for an unknown handle and 403 for a real one,
+     * handing out an existence oracle. The repository must not be touched at all.
+     */
+    @Test
+    void history_foreignHandleIsRefusedWithoutLookingTheHandleUp() {
+        assertThatThrownBy(() -> service.history(owner(), "bob", null, null, 0, 20))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("only view your own submission history");
+
+        verify(userRepo, never()).findByUsername(any());
+        verify(subRepo, never()).findHistoryPage(anyLong(), any(), any(), any(Pageable.class));
+    }
+
+    @Test
+    void history_ownHandleSpelledOutIsAllowed() {
+        User viewer = owner();
+        viewer.setUsername("alice");
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(viewer));
+        when(subRepo.findHistoryPage(eq(OWNER_ID), any(), any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        SubmissionPage page = service.history(viewer, "alice", null, null, 0, 20);
+
+        assertThat(page.page()).isZero();
+    }
+
+    @Test
+    void history_rejectsSizeBelowOne() {
+        assertThatThrownBy(() -> service.history(owner(), null, null, null, 0, 0))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("size must be between 1 and 100");
+    }
+
+    @Test
+    void history_rejectsSizeAboveTheCap() {
+        assertThatThrownBy(() -> service.history(owner(), null, null, null, 0, 101))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("size must be between 1 and 100");
+    }
 }

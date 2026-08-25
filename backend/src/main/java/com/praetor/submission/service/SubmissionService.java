@@ -106,17 +106,27 @@ public class SubmissionService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "size must be between 1 and 100");
         }
 
+        // Staff is ADMIN or PROBLEM_SETTER, matching the rest of the product: the contract calls
+        // this endpoint owner/staff, and the standings board already lets both roles see through a
+        // freeze. Testing for "not a plain USER" is the same test ContestController.standings uses;
+        // spelling it as ADMIN only had locked PROBLEM_SETTER out, the mirror image of the bug
+        // ProblemAuthz was written to fix.
+        boolean staff = user != null && !"USER".equals(user.getRole());
+
         Long targetUserId = null;
         if (requestedHandle != null && !requestedHandle.isBlank()) {
-            User target = userRepo.findByUsername(requestedHandle)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                            "user not found: " + requestedHandle));
-            if (!"ADMIN".equals(user.getRole()) && !target.getId().equals(user.getId())) {
+            // Authorise before the lookup. The other order answers 404 for a handle that does not
+            // exist and 403 for one that does, which is an existence oracle for any handle a caller
+            // cares to guess.
+            if (!staff && !requestedHandle.equals(user.getUsername())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                         "you may only view your own submission history");
             }
+            User target = userRepo.findByUsername(requestedHandle)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                            "user not found: " + requestedHandle));
             targetUserId = target.getId();
-        } else if (!"ADMIN".equals(user.getRole())) {
+        } else if (!staff) {
             targetUserId = user.getId();
         }
 

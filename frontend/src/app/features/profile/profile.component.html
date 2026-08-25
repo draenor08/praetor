@@ -47,17 +47,26 @@
 
     <div class="info-row" *ngIf="profileStats">
       <span class="label">Solved</span>
-      <span>{{ profileStats.solvedCount }}</span>
+      <span>{{ profileStats.solved }}</span>
     </div>
 
     <div class="info-row" *ngIf="profileStats">
-      <span class="label">Submissions</span>
-      <span>{{ profileStats.submissionCount }}</span>
+      <span class="label">Attempted</span>
+      <span>{{ profileStats.attempted }}</span>
     </div>
 
     <div class="info-row" *ngIf="profileStats">
-      <span class="label">Acceptance</span>
-      <span>{{ (profileStats.acceptanceRate * 100) | number:'1.0-2' }}%</span>
+      <span class="label">Accuracy</span>
+      <span>{{ (profileStats.accuracy * 100) | number:'1.0-2' }}%</span>
+    </div>
+
+    <div class="info-row" *ngIf="verdictBreakdown.length">
+      <span class="label">Verdicts</span>
+      <span class="verdicts">
+        <span class="verdict-chip" *ngFor="let v of verdictBreakdown">
+          {{ v.verdict }} {{ v.count }}
+        </span>
+      </span>
     </div>
 
     </div>

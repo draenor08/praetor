@@ -289,7 +289,7 @@ Ranks are **global, not page-local**, and equal ratings **share** a rank with th
 > Formula: multi-player ELO, K=24, per-contest delta clamped to ±48, ties score 0.5.
 > `ContestService` has **no** dependency on rating — keep it that way.
 
-### Solve stats (FR-25) — *not implemented yet*
+### Solve stats (FR-25)
 | Method | Path | Auth | Returns |
 |---|---|---|---|
 | GET | `/api/users/{handle}/stats` | any | below |
@@ -298,6 +298,19 @@ Ranks are **global, not page-local**, and equal ratings **share** a rank with th
   "byVerdict": {"AC":42,"WA":18,"TLE":7,"RE":3} }
 ```
 > **Optional (heatmap, not in the 21):** add `"heatmap": [ {"date":"2026-06-01","count":3}, ... ]` to the stats response.
+
+> ⚠ **These counts exclude every submission belonging to a contest that has not ended yet.** The
+> endpoint is readable by any authenticated user, so without that filter a contestant could poll a
+> rival's handle during a freeze and watch `solved` tick up — learning precisely what the board is
+> withholding. **The freeze is a property of the system, not of the standings endpoint: an aggregate
+> count is a side channel like any other, and this is the third read path it has leaked through.**
+> Practice submissions (`contestId` null) always count. The filter compares against Postgres
+> `now()`, never an application clock.
+
+> `attempted` counts **judged submissions**, so `byVerdict` sums to it and anything still queued is
+> excluded. `accuracy` is accepted submissions ÷ `attempted` — *submissions, not problems*: five
+> accepted attempts at one problem out of ten submissions is `0.5`, not `0.1`. `solved` is the
+> distinct-problem count, which is why it cannot come from the same tally. Unknown handle → `404`.
 
 ### Rate-limit (FR-26)
 Not an endpoint — a cooldown enforced **inside `SubmissionService.create`** (`SubmissionRateLimiter`).
@@ -330,15 +343,29 @@ Exceeded →
 |---|---|---|---|
 | POST | `/api/submissions` | USER | submit code; rate-limited (FR-26 filter) |
 | GET  | `/api/submissions/{id}` | owner/ADMIN | full result incl. per-testcase |
-| GET  | `/api/submissions?user=&problem=&contest=` | owner/staff | history list (FR-10) — **unbuilt** |
+| GET  | `/api/submissions?user=&problem=&contest=` | owner/staff | history list (FR-10); `?page=&size=` (size 1–100) |
 | POST | `/api/submissions/{id}/rejudge` | ADMIN | FR-27 |
 
 > ⚠ **The FR-10 list is `owner/staff`, corrected from an earlier `any`.** A publicly readable
 > `?user=` list re-exposes exactly what the standings freeze exists to hide: during a freeze the
 > board withholds a late `AC`, but anyone could read that user's submission list and see it anyway.
-> Whoever builds FR-10 must scope the query to the caller's own submissions unless the caller is
-> staff. The row also must not carry `sourceCode` — `GET /api/submissions/{id}` is `owner/ADMIN`
-> precisely so source stays private, and a list that included it would route around that.
+> The query is scoped to the caller's own submissions unless the caller is staff. The row also does
+> not carry `sourceCode` — `GET /api/submissions/{id}` is `owner/ADMIN` precisely so source stays
+> private, and a list that included it would route around that.
+
+> **Staff here means ADMIN or PROBLEM_SETTER**, the same pair that sees through a standings freeze.
+> Spelling this as ADMIN alone locked PROBLEM_SETTER out — the mirror image of the bug `ProblemAuthz`
+> exists to fix. Note also that authorisation happens *before* the handle is looked up: answering
+> `404` for an unknown handle and `403` for a real one would hand out an existence oracle.
+
+```json
+// GET /api/submissions?user=&problem=&contest=&page=0&size=20
+{ "content": [ { "id":99, "handle":"alice", "problemSlug":"a-plus-b", "language":"CPP",
+                 "status":"DONE", "verdict":"AC", "score":100,
+                 "createdAt":"2026-06-26T12:00:00Z" } ],
+  "page":0, "size":20, "totalElements":1 }
+```
+Newest first (`createdAt DESC, id DESC`). `page` below 0 or `size` outside 1–100 → `400`.
 
 ```json
 // POST /api/submissions  request
