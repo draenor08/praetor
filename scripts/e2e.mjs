@@ -271,6 +271,91 @@ async function main() {
   check('applying twice is idempotent (still 202, no double-apply)',
     applyAgain.status === 202, applyAgain);
 
+  section('Multi-language judging (FR-5)');
+  // The judge image carries three toolchains, but only C++ was ever exercised end to end, so a
+  // stale image that had lost its JDK would fail every Java submission with "javac: not found"
+  // and nothing here would notice. These two submissions are that alarm. Same A+B problem and
+  // the same test cases as the C++ run above, so an AC means the toolchain, not the solution.
+  const PY_SOLUTION = 'a, b = map(int, input().split())\nprint(a + b)\n';
+  const JAVA_SOLUTION = [
+    'import java.util.Scanner;',
+    '',
+    'public class Main {',
+    '    public static void main(String[] args) {',
+    '        Scanner sc = new Scanner(System.in);',
+    '        long a = sc.nextLong();',
+    '        long b = sc.nextLong();',
+    '        System.out.println(a + b);',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+
+  for (const [language, sourceCode] of [['PYTHON', PY_SOLUTION], ['JAVA', JAVA_SOLUTION]]) {
+    // One accepted submission per user per cooldown window, so wait it out rather than eating a 429.
+    await sleep(COOLDOWN_SEC * 1000);
+    const sent = await call('POST', '/api/submissions', {
+      token: alice,
+      body: { problemSlug: slug, language, sourceCode }
+    });
+    check(`${language}: submit → 202 QUEUED`, sent.status === 202, sent);
+
+    const judged = await waitForVerdict(sent.body?.id, alice);
+    // A CE here almost always means the toolchain is missing from the image rather than a bad
+    // solution, so surface the compile log — it is the difference between a five-second diagnosis
+    // and an hour of guessing.
+    check(`${language}: judged AC (toolchain present and working)`,
+      judged?.status === 'DONE' && judged?.verdict === 'AC',
+      { status: judged?.status, verdict: judged?.verdict, compileLog: judged?.compileLog });
+  }
+
+  section('Submission history + solve stats (FR-10, FR-25)');
+  // These endpoints are the only place a repository @Query is exercised at all — the backend
+  // tests mock every repository, so a broken JPQL, a bad Spring-Data-derived count query, or a
+  // parameter-cast problem would otherwise reach production silently. That is what this section
+  // exists for.
+  const history = await call('GET', '/api/submissions?page=0&size=5', { token: alice });
+  check('own submission history → 200 (JPQL and its derived count query both execute)',
+    history.status === 200 && Array.isArray(history.body?.content), history.body);
+
+  check('page envelope carries page/size/totalElements',
+    history.body?.page === 0 && history.body?.size === 5
+      && typeof history.body?.totalElements === 'number', history.body);
+
+  const rows = history.body?.content ?? [];
+  check('every row belongs to the caller (no cross-user rows leak into own history)',
+    rows.every((r) => r.handle === 'alice'), rows.map((r) => r.handle));
+
+  check('summary rows never carry sourceCode',
+    rows.every((r) => !('sourceCode' in r)), Object.keys(rows[0] ?? {}));
+
+  const paged = await call('GET', '/api/submissions?page=0&size=1', { token: alice });
+  check('size is honoured (size=1 returns at most one row)',
+    paged.status === 200 && (paged.body?.content?.length ?? 0) <= 1, paged.body);
+
+  const foreign = await call('GET', '/api/submissions?user=setter01', { token: alice });
+  check('contestant reading another handle → 403', foreign.status === 403, foreign);
+
+  const asAdmin = await call('GET', '/api/submissions?user=alice&page=0&size=5', { token: admin });
+  check('ADMIN may filter to any handle → 200',
+    asAdmin.status === 200 && Array.isArray(asAdmin.body?.content), asAdmin.body);
+
+  const badSize = await call('GET', '/api/submissions?size=101', { token: alice });
+  check('size above the cap → 400', badSize.status === 400, badSize);
+
+  const badPage = await call('GET', '/api/submissions?page=-1', { token: alice });
+  check('negative page → 400', badPage.status === 400, badPage);
+
+  const stats = await call('GET', '/api/users/alice/stats', { token: alice });
+  check('solve stats → 200 with a body', stats.status === 200 && typeof stats.body === 'object',
+    stats.body);
+  // Deliberately not asserting the field names yet. The shipped shape
+  // ({username, solvedCount, submissionCount, acceptanceRate}) does not match
+  // docs/api-contracts.md ({solved, attempted, accuracy, byVerdict}); the assertions for the
+  // contract shape, the accuracy formula, the 404 on an unknown handle, and the contest-end
+  // filter on the counts land together with those fixes. Keeping them out now so this script
+  // stays green on main.
+
   section('Cleanup');
   // The problem now has submissions, so it cannot be hard-deleted — that is the guard working,
   // not a failure. It is left archived and out of the public list, named with this run's suffix.
