@@ -50,20 +50,20 @@
   </div>
 
   <div class="stats-grid" aria-label="Account statistics">
-    <!-- Solve stats are FR-25, which is unbuilt: these cards say so instead of showing a number
-         nothing computes. -->
+    <!-- An em-dash rather than a zero when the call fails: reporting 0 solved to someone who has
+         solved plenty is worse than admitting we do not know. -->
     <article class="stat-card" [class.placeholder]="!solveStatsTracked">
       <span>Problems solved</span>
       <strong *ngIf="solveStatsTracked && solveStats">{{ solveStats.solved }}</strong>
       <strong *ngIf="!solveStatsTracked">&mdash;</strong>
-      <small *ngIf="!solveStatsTracked" class="untracked">not tracked yet</small>
+      <small *ngIf="!solveStatsTracked" class="untracked">unavailable right now</small>
     </article>
     <article class="stat-card" [class.placeholder]="!solveStatsTracked">
       <span>Submissions</span>
-      <strong *ngIf="solveStatsTracked && solveStats">{{ solveStats.submissions }}</strong>
+      <strong *ngIf="solveStatsTracked && solveStats">{{ solveStats.attempted }}</strong>
       <strong *ngIf="!solveStatsTracked">&mdash;</strong>
-      <small *ngIf="solveStatsTracked && solveStats">{{ solveStats.accuracyPct }}% accepted</small>
-      <small *ngIf="!solveStatsTracked" class="untracked">not tracked yet</small>
+      <small *ngIf="solveStatsTracked && solveStats">{{ accuracyPct }}% accepted</small>
+      <small *ngIf="!solveStatsTracked" class="untracked">unavailable right now</small>
     </article>
     <article class="stat-card">
       <span>Current rating</span>
@@ -80,19 +80,26 @@
 
   <section class="activity-card" aria-label="Recent activity">
     <h3>Recent activity</h3>
-    <!-- FR-10 submission history is unbuilt, so the feed states that rather than sitting empty
-         and reading like a user with nothing to show. -->
     <p *ngIf="!activityTracked" class="untracked">
-      Your submission history is not tracked yet. Open a submission from a problem page to see its verdict.
+      Could not load your recent submissions.
     </p>
-    <ul *ngIf="activityTracked" class="activity-list">
+    <ul *ngIf="activityTracked && activity.length > 0" class="activity-list">
       <li *ngFor="let row of activity">
-        <span class="activity-when">{{ row.at }}</span>
-        <span class="activity-problem">{{ row.problem }}</span>
-        <span class="activity-verdict">{{ row.verdict }}</span>
+        <span class="activity-when">{{ row.createdAt | date:'MMM d, HH:mm' }}</span>
+        <a class="activity-problem" [routerLink]="['/problems', row.problemSlug]">{{ row.problemSlug }}</a>
+        <!-- No verdict yet means the judge still has it, so show where it got to instead. -->
+        <a class="activity-verdict" [routerLink]="['/submissions', row.id]">
+          <span *ngIf="row.verdict" class="verdict verdict-{{ row.verdict }}">{{ row.verdict }}</span>
+          <span *ngIf="!row.verdict" class="status-pill">{{ row.status }}</span>
+        </a>
       </li>
     </ul>
-    <p *ngIf="activityTracked && activity.length === 0" class="untracked">No submissions yet.</p>
+    <p *ngIf="activityTracked && activity.length === 0" class="untracked">
+      No submissions yet. Pick a problem and give it a go.
+    </p>
+    <a *ngIf="activityTracked && activity.length > 0" class="activity-all" routerLink="/submissions">
+      All submissions →
+    </a>
   </section>
 
   <div class="feature-grid">

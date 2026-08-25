@@ -4,30 +4,24 @@ import { RouterModule } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
 import { UserRating } from '../../core/models/rating.model';
+import { ProfileSolveStats } from '../../core/models/profile.model';
+import { SubmissionSummary } from '../../core/models/submission.model';
 
-/** One row of the activity feed. Shaped now so FR-10 only has to fill the list. */
-interface ActivityRow {
-  at: string;
-  problem: string;
-  verdict: string;
-}
-
-/** The three counters the stat cards want. FR-25 is the endpoint that would serve them. */
-interface SolveStats {
-  solved: number;
-  submissions: number;
-  accuracyPct: number;
-}
+/** How many recent submissions the activity feed shows before deferring to /submissions. */
+const RECENT_COUNT = 5;
 
 /**
  * Post-login home. Rating, global rank and the last contest's delta are real — they come from
  * GET /api/users/{handle}/rating, the same endpoint the profile page reads.
  *
- * Solve stats (FR-25) and submission history (FR-10) have no endpoint at any layer yet, and they
- * are a teammate's features. Rather than ship the invented numbers this page used to hardcode
- * (73 solved / 104 submissions / rank #12), those cards render as visibly-marked placeholders.
- * Each is one flag plus one empty loader: when the endpoint lands, flip the flag and fill the
- * method — no template surgery.
+ * Solve stats (FR-25) and submission history (FR-10) are real now too. They were placeholders
+ * while those features were unbuilt — deliberately marked as such rather than shipping the
+ * invented numbers this page once hardcoded (73 solved / 104 submissions / rank #12). Both are
+ * wired to their endpoints as of #41/#44/#45.
+ *
+ * <p>Every card degrades to an em-dash rather than a zero when its call fails: a dashboard that
+ * silently reports 0 solved to someone who has solved plenty is worse than one that admits it
+ * does not know.
  */
 @Component({
   selector: 'app-landing',
@@ -45,13 +39,24 @@ export class LandingComponent implements OnInit {
   loading = true;
   error = '';
 
-  /** FR-25 solve stats — unbuilt. Flip to true once loadSolveStats() has something to call. */
-  readonly solveStatsTracked = false;
-  solveStats: SolveStats | null = null;
+  solveStats: ProfileSolveStats | null = null;
+  activity: SubmissionSummary[] = [];
 
-  /** FR-10 submission history — unbuilt. Same contract as above. */
-  readonly activityTracked = false;
-  activity: ActivityRow[] = [];
+  /** Distinguishes "loaded, and there is nothing" from "could not load" — different messages. */
+  private activityLoaded = false;
+
+  get solveStatsTracked(): boolean {
+    return this.solveStats !== null;
+  }
+
+  get activityTracked(): boolean {
+    return this.activityLoaded;
+  }
+
+  /** Whole percent is enough on a dashboard tile; the profile page carries the precise figure. */
+  get accuracyPct(): number {
+    return Math.round((this.solveStats?.accuracy ?? 0) * 100);
+  }
 
   features = [
     {
@@ -74,6 +79,8 @@ export class LandingComponent implements OnInit {
         this.user = user;
         this.loading = false;
         this.loadRating(user?.username);
+        // Solve stats are keyed by handle, so this one has to wait for /users/me to answer.
+        this.loadSolveStats(user?.username);
       },
       error: () => {
         this.error = 'Could not load your dashboard.';
@@ -81,7 +88,7 @@ export class LandingComponent implements OnInit {
       }
     });
 
-    this.loadSolveStats();
+    // The history endpoint defaults to the caller's own rows, so it needs no handle.
     this.loadRecentActivity();
   }
 
@@ -98,19 +105,31 @@ export class LandingComponent implements OnInit {
   }
 
   /**
-   * FR-25 (solve stats) — Mahir's feature, unbuilt at every layer. When the endpoint exists:
-   * call it here and assign this.solveStats, then set solveStatsTracked to true.
+   * Solve statistics (FR-25). These counts exclude anything from a contest that has not ended, so
+   * a figure here does not move mid-round — that is the standings freeze holding, not a bug.
    */
-  private loadSolveStats(): void {
-    this.solveStats = null;
+  private loadSolveStats(handle?: string): void {
+    if (!handle) {
+      return;
+    }
+    this.api.getUserSolveStats(handle).subscribe({
+      next: (stats) => (this.solveStats = stats),
+      error: () => (this.solveStats = null)
+    });
   }
 
-  /**
-   * FR-10 (submission history) — same: fill this.activity from the user's recent submissions
-   * and set activityTracked to true.
-   */
+  /** The last few submissions (FR-10). The full list lives at /submissions. */
   private loadRecentActivity(): void {
-    this.activity = [];
+    this.api.getSubmissions({ page: 0, size: RECENT_COUNT }).subscribe({
+      next: (page) => {
+        this.activity = page.content;
+        this.activityLoaded = true;
+      },
+      error: () => {
+        this.activity = [];
+        this.activityLoaded = false;
+      }
+    });
   }
 
   get initial(): string {
