@@ -12,7 +12,7 @@ import {
   ProblemUsage,
   TestCaseRow
 } from '../models/problem.model';
-import { SubmissionCreated, SubmissionResponse, SubmitRequest } from '../models/submission.model';
+import { SubmissionCreated, SubmissionPage, SubmissionResponse, SubmitRequest } from '../models/submission.model';
 import { ProfileSolveStats } from '../models/profile.model';
 import {
   ContestDetail,
@@ -70,6 +70,32 @@ export class ApiService {
 
   getSubmission(id: number): Observable<SubmissionResponse> {
     return this.http.get<SubmissionResponse>(`/api/submissions/${id}`);
+  }
+
+  /**
+   * Submission history (FR-10). Scoped to the caller's own submissions server-side; only staff
+   * may pass a `user` handle, and asking for someone else's is a 403 rather than an empty page.
+   */
+  getSubmissions(opts: {
+    user?: string;
+    problem?: number;
+    contest?: number;
+    page?: number;
+    size?: number;
+  } = {}): Observable<SubmissionPage> {
+    let params = new HttpParams()
+      .set('page', String(opts.page ?? 0))
+      .set('size', String(opts.size ?? 20));
+    if (opts.user) {
+      params = params.set('user', opts.user);
+    }
+    if (opts.problem != null) {
+      params = params.set('problem', String(opts.problem));
+    }
+    if (opts.contest != null) {
+      params = params.set('contest', String(opts.contest));
+    }
+    return this.http.get<SubmissionPage>('/api/submissions', { params });
   }
 
   /** Re-run an existing submission (ADMIN only) — 202, re-judged async. */

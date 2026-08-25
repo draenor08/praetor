@@ -8,13 +8,15 @@ export interface Toast {
   title?: string;
   message: string;
   duration: number;
-  createdAt: number;
 }
 
 export interface ToastOptions {
   title?: string;
   duration?: number;
 }
+
+/** Most toasts on screen at once; beyond this the oldest is dropped. */
+const MAX_VISIBLE = 4;
 
 @Injectable({
   providedIn: 'root'
@@ -49,11 +51,18 @@ export class ToastService {
       type,
       title,
       message,
-      duration: dur,
-      createdAt: Date.now()
+      duration: dur
     };
 
-    this.toastsSignal.update((list) => [...list, toast]);
+    // Cap the stack. The container is fixed-position with no scroll, so an unbounded burst — a
+    // run of judged submissions arriving over the WebSocket, say — would push the oldest toasts
+    // off-screen where nothing can dismiss them. Oldest out first.
+    this.toastsSignal.update((list) => {
+      const next = [...list, toast];
+      const overflow = next.slice(0, Math.max(0, next.length - MAX_VISIBLE));
+      overflow.forEach((t) => this.clearTimer(t.id));
+      return next.slice(-MAX_VISIBLE);
+    });
 
     if (dur > 0) {
       const handle = setTimeout(() => {
@@ -87,11 +96,17 @@ export class ToastService {
 
   /** Dismiss a single toast by ID. */
   dismiss(id: string): void {
-    if (this.timeouts.has(id)) {
-      clearTimeout(this.timeouts.get(id));
+    this.clearTimer(id);
+    this.toastsSignal.update((list) => list.filter((t) => t.id !== id));
+  }
+
+  /** Cancels a pending auto-dismiss without touching the list. */
+  private clearTimer(id: string): void {
+    const handle = this.timeouts.get(id);
+    if (handle !== undefined) {
+      clearTimeout(handle);
       this.timeouts.delete(id);
     }
-    this.toastsSignal.update((list) => list.filter((t) => t.id !== id));
   }
 
   /** Clear all active toasts immediately. */

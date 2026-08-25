@@ -1,0 +1,74 @@
+<h1 class="page-title">Submissions</h1>
+
+<!-- Staff may read any handle; a contestant's own rows are all the API will return them. -->
+<form *ngIf="isStaff" class="filter-bar" (ngSubmit)="applyFilter()">
+  <input
+    type="text"
+    name="handle"
+    class="filter-input"
+    placeholder="Filter by handle…"
+    autocomplete="off"
+    [(ngModel)]="handleFilter"
+  />
+  <button type="submit" class="btn-small">Filter</button>
+  <button *ngIf="filtered" type="button" class="btn-small" (click)="clearFilter()">Clear</button>
+</form>
+
+<p *ngIf="loading" class="muted">Loading…</p>
+<p *ngIf="error" class="error-message">{{ error }}</p>
+
+<div *ngIf="!loading && !error">
+  <table class="sub-table">
+    <thead>
+      <tr>
+        <th class="col-id">#</th>
+        <th>Problem</th>
+        <th *ngIf="filtered">Handle</th>
+        <th class="col-lang">Language</th>
+        <th class="col-verdict">Verdict</th>
+        <th class="col-score num">Score</th>
+        <th class="col-when">When</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let s of rows">
+        <td class="col-id num">
+          <a [routerLink]="['/submissions', s.id]">{{ s.id }}</a>
+        </td>
+        <td>
+          <a [routerLink]="['/problems', s.problemSlug]">{{ s.problemSlug }}</a>
+        </td>
+        <td *ngIf="filtered">
+          {{ s.handle }}
+          <span *ngIf="s.handle === me" class="you">you</span>
+        </td>
+        <td class="col-lang">{{ s.language }}</td>
+        <td class="col-verdict">
+          <!-- No verdict yet means the judge still has it, so show where it is instead. -->
+          <span *ngIf="s.verdict" class="verdict verdict-{{ s.verdict }}">{{ s.verdict }}</span>
+          <span *ngIf="!s.verdict" class="status-pill">{{ s.status }}</span>
+        </td>
+        <td class="col-score num">{{ s.score ?? '—' }}</td>
+        <td class="col-when">{{ s.createdAt | date:'MMM d, HH:mm' }}</td>
+      </tr>
+      <tr *ngIf="rows.length === 0">
+        <td [attr.colspan]="filtered ? 7 : 6" class="muted">
+          <ng-container *ngIf="filtered">No submissions from that handle yet.</ng-container>
+          <ng-container *ngIf="!filtered">
+            You have not submitted anything yet. Pick a problem and give it a go.
+          </ng-container>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="pager" *ngIf="total > 0">
+    <button type="button" class="btn-small" [disabled]="!hasPrev" (click)="load(page - 1)">
+      ← Previous
+    </button>
+    <span class="pager-info">{{ firstShown }}–{{ lastShown }} of {{ total }}</span>
+    <button type="button" class="btn-small" [disabled]="!hasNext" (click)="load(page + 1)">
+      Next →
+    </button>
+  </div>
+</div>
