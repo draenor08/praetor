@@ -7,7 +7,9 @@ import com.praetor.submission.SubmissionStatus;
 import com.praetor.submission.Verdict;
 import com.praetor.submission.dto.ResultResponse;
 import com.praetor.submission.dto.SubmissionCreatedResponse;
+import com.praetor.submission.dto.SubmissionPage;
 import com.praetor.submission.dto.SubmissionResponse;
+import com.praetor.submission.dto.SubmissionSummary;
 import com.praetor.submission.dto.SubmitRequest;
 import com.praetor.submission.engine.JudgeService;
 import com.praetor.submission.engine.Language;
@@ -18,6 +20,9 @@ import com.praetor.submission.repository.RevealView;
 import com.praetor.submission.repository.SubmissionRepository;
 import com.praetor.submission.repository.SubmissionResultRepository;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -89,6 +94,39 @@ public class SubmissionService {
 
         judgeService.enqueue(saved.getId());
         return new SubmissionCreatedResponse(saved.getId(), saved.getStatus());
+    }
+
+    @Transactional(readOnly = true)
+    public SubmissionPage history(User user, String requestedHandle, Long problemId, Long contestId,
+                                 int page, int size) {
+        if (page < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be >= 0");
+        }
+        if (size < 1 || size > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "size must be between 1 and 100");
+        }
+
+        Long targetUserId = null;
+        if (requestedHandle != null && !requestedHandle.isBlank()) {
+            User target = userRepo.findByUsername(requestedHandle)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                            "user not found: " + requestedHandle));
+            if (!"ADMIN".equals(user.getRole()) && !target.getId().equals(user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "you may only view your own submission history");
+            }
+            targetUserId = target.getId();
+        } else if (!"ADMIN".equals(user.getRole())) {
+            targetUserId = user.getId();
+        }
+
+        PageRequest pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        Page<SubmissionSummary> pageResult = subRepo.findHistoryPage(targetUserId, problemId, contestId,
+                pageable);
+
+        return new SubmissionPage(pageResult.getContent(), pageResult.getNumber(),
+                pageResult.getSize(), pageResult.getTotalElements());
     }
 
     /**
