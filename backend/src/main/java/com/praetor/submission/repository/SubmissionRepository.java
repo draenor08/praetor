@@ -58,4 +58,12 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
                 AND now() BETWEEN c.starts_at AND c.ends_at)
             """, nativeQuery = true)
     boolean existsLiveContestForProblem(@Param("problemId") Long problemId);
+
+    /** Total number of submissions made by a user. */
+    @Query("SELECT COUNT(s) FROM Submission s WHERE s.userId = :userId")
+    long countByUserId(@Param("userId") Long userId);
+
+    /** Number of distinct problems the user has solved (verdict = 'AC'). */
+    @Query("SELECT COUNT(DISTINCT s.problemId) FROM Submission s WHERE s.userId = :userId AND s.verdict = 'AC'")
+    long countDistinctSolvedProblemsByUser(@Param("userId") Long userId);
 }
