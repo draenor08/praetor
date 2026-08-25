@@ -7,6 +7,7 @@ import { ContestDetail } from '../../../core/models/contest.model';
 import { StandingsLiveComponent } from '../standings-live/standings-live.component';
 import { CountdownComponent } from '../../../shared/components/countdown/countdown.component';
 import { phaseOf, serverNowMs, serverSkewMs } from '../../../shared/contest-clock';
+import { ToastService } from '../../../shared/toast/toast.service';
 
 /**
  * Contest page: meta, the problem set, registration, and the live ICPC standings board.
@@ -27,6 +28,7 @@ export class ContestDetailComponent implements OnInit {
   private api = inject(ApiService);
   private tokenService = inject(TokenService);
   private route = inject(ActivatedRoute);
+  private toast = inject(ToastService);
 
   contestId!: number;
   contest?: ContestDetail;
@@ -34,7 +36,6 @@ export class ContestDetailComponent implements OnInit {
   error = '';
 
   registering = false;
-  registerMsg = '';
 
   get isPrivileged(): boolean {
     const role = this.tokenService.getUser()?.role;
@@ -100,21 +101,22 @@ export class ContestDetailComponent implements OnInit {
       return;
     }
     this.registering = true;
-    this.registerMsg = '';
     this.api.registerForContest(this.contestId).subscribe({
       next: () => {
         this.registering = false;
-        this.registerMsg = 'Registered ✓';
+        this.toast.success('Registration successful.');
         // Re-fetch rather than flip the flag locally: whether the problems are now visible is the
         // backend's call (a contest that has not started yet still withholds them).
         this.load();
       },
       error: (err) => {
         this.registering = false;
-        this.registerMsg = err?.status === 409 ? 'Already registered' : 'Registration failed';
         if (err?.status === 409) {
+          this.toast.info('You are already registered for this contest.');
           this.load();
+          return;
         }
+        this.toast.error('Registration failed.');
       }
     });
   }

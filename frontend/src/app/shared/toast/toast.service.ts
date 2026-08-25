@@ -36,14 +36,12 @@ export class ToastService {
 
     if (typeof options === 'string') {
       title = options;
-      if (duration !== undefined) {
-        dur = duration;
-      }
+      dur = duration ?? dur;
     } else if (options) {
       title = options.title;
-      if (options.duration !== undefined) {
-        dur = options.duration;
-      }
+      dur = options.duration ?? duration ?? dur;
+    } else {
+      dur = duration ?? dur;
     }
 
     const toast: Toast = {
