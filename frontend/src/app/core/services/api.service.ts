@@ -146,6 +146,10 @@ export class ApiService {
     return this.http.get<UserRating>(`/api/users/${handle}/rating`);
   }
 
+  getUserSolveStats(handle: string): Observable<import('../models/profile.model').ProfileSolveStats> {
+    return this.http.get<import('../models/profile.model').ProfileSolveStats>(`/api/users/${handle}/stats`);
+  }
+
   // --- Setter workspace (PROBLEM_SETTER / ADMIN) ---------------------------
   // Reads live under /api/setter/** because GET /api/problems/* is anonymous, so a management
   // read parked there would arrive with no authenticated user at all. Writes reuse the

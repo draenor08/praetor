@@ -3,6 +3,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
 import { UserRating } from '../../core/models/rating.model';
+import { ProfileSolveStats } from '../../core/models/profile.model';
 
 interface ChartPoint {
   x: number;
@@ -30,6 +31,7 @@ export class ProfileComponent implements OnInit {
 
   user: any = null;
   rating?: UserRating;
+  profileStats?: ProfileSolveStats | null = null;
   loading = true;
   error = '';
 
@@ -45,6 +47,7 @@ export class ProfileComponent implements OnInit {
         this.user = user;
         this.loading = false;
         this.loadRating(user?.username);
+        this.loadProfileStats(user?.username);
       },
       error: () => {
         this.error = 'Could not load profile.';
@@ -67,6 +70,16 @@ export class ProfileComponent implements OnInit {
     // /api/users/me only knows the current value.
     this.api.getUserRating(handle).subscribe({
       next: (rating) => (this.rating = rating),
+      error: () => undefined
+    });
+  }
+
+  private loadProfileStats(handle?: string): void {
+    if (!handle) {
+      return;
+    }
+    this.api.getUserSolveStats(handle).subscribe({
+      next: (s) => (this.profileStats = s),
       error: () => undefined
     });
   }

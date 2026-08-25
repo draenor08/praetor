@@ -17,7 +17,9 @@ import com.praetor.identity.entity.User;
 import com.praetor.identity.repository.UserRepository;
 import com.praetor.submission.SubmissionStatus;
 import com.praetor.submission.Verdict;
+import com.praetor.submission.dto.SubmissionPage;
 import com.praetor.submission.dto.SubmissionResponse;
+import com.praetor.submission.dto.SubmissionSummary;
 import com.praetor.submission.dto.SubmitRequest;
 import com.praetor.submission.engine.JudgeService;
 import com.praetor.submission.entity.JudgeProblem;
@@ -27,10 +29,14 @@ import com.praetor.submission.repository.ResultView;
 import com.praetor.submission.repository.RevealView;
 import com.praetor.submission.repository.SubmissionRepository;
 import com.praetor.submission.repository.SubmissionResultRepository;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -326,5 +332,67 @@ class SubmissionServiceTest {
             assertThat(r.actualOutput()).isNull();
         });
         verify(resultRepo, never()).findFailingReveal(anyLong());
+    }
+
+    @Test
+    void history_ownerGetsOwnPage() {
+        User viewer = owner();
+        viewer.setUsername("alice");
+        SubmissionSummary summary = new SubmissionSummary(
+                10L, "alice", "a-plus-b", "CPP", SubmissionStatus.DONE, Verdict.AC, 100,
+                ZonedDateTime.parse("2026-07-12T10:00:00Z"));
+        when(subRepo.findHistoryPage(eq(OWNER_ID), eq(7L), eq(88L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(summary), PageRequest.of(0, 20), 1));
+
+        SubmissionPage page = service.history(viewer, null, 7L, 88L, 0, 20);
+
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().get(0).problemSlug()).isEqualTo("a-plus-b");
+        assertThat(page.totalElements()).isEqualTo(1L);
+        assertThat(page.page()).isZero();
+    }
+
+    @Test
+    void history_adminCanViewAnotherUserPage() {
+        User adminUser = admin();
+        adminUser.setUsername("admin");
+        User other = new User();
+        other.setId(99L);
+        other.setUsername("bob");
+        other.setRole("USER");
+        SubmissionSummary summary = new SubmissionSummary(
+                11L, "bob", "two-sum", "PYTHON", SubmissionStatus.DONE, Verdict.WA, 80,
+                ZonedDateTime.parse("2026-07-13T09:30:00Z"));
+        when(userRepo.findByUsername("bob")).thenReturn(Optional.of(other));
+        when(subRepo.findHistoryPage(eq(99L), eq(12L), eq(1L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(summary), PageRequest.of(1, 10), 1));
+
+        SubmissionPage page = service.history(adminUser, "bob", 12L, 1L, 1, 10);
+
+        assertThat(page.content()).singleElement().extracting(SubmissionSummary::problemSlug)
+                .isEqualTo("two-sum");
+        assertThat(page.page()).isEqualTo(1);
+        assertThat(page.size()).isEqualTo(10);
+    }
+
+    @Test
+    void history_nonAdminCannotViewAnotherUserPage() {
+        User other = new User();
+        other.setId(99L);
+        other.setUsername("bob");
+        other.setRole("USER");
+        when(userRepo.findByUsername("bob")).thenReturn(Optional.of(other));
+
+        assertThatThrownBy(() -> service.history(owner(), "bob", null, null, 0, 20))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("only view your own submission history");
+        verify(subRepo, never()).findHistoryPage(anyLong(), any(), any(), any(Pageable.class));
+    }
+
+    @Test
+    void history_rejectsNegativePage() {
+        assertThatThrownBy(() -> service.history(owner(), null, null, null, -1, 20))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("page must be >= 0");
     }
 }

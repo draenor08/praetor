@@ -45,6 +45,21 @@
         </span>
       </div>
 
+    <div class="info-row" *ngIf="profileStats">
+      <span class="label">Solved</span>
+      <span>{{ profileStats.solvedCount }}</span>
+    </div>
+
+    <div class="info-row" *ngIf="profileStats">
+      <span class="label">Submissions</span>
+      <span>{{ profileStats.submissionCount }}</span>
+    </div>
+
+    <div class="info-row" *ngIf="profileStats">
+      <span class="label">Acceptance</span>
+      <span>{{ (profileStats.acceptanceRate * 100) | number:'1.0-2' }}%</span>
+    </div>
+
     </div>
   </div>
 

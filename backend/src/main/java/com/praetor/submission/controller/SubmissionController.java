@@ -2,6 +2,7 @@ package com.praetor.submission.controller;
 
 import com.praetor.identity.entity.User;
 import com.praetor.submission.dto.SubmissionCreatedResponse;
+import com.praetor.submission.dto.SubmissionPage;
 import com.praetor.submission.dto.SubmissionResponse;
 import com.praetor.submission.dto.SubmitRequest;
 import com.praetor.submission.service.SubmissionService;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -31,6 +33,17 @@ public class SubmissionController {
     public ResponseEntity<SubmissionCreatedResponse> submit(@Valid @RequestBody SubmitRequest req,
                                                             @AuthenticationPrincipal User user) {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.create(req, user));
+    }
+
+    /** Submission list/history. Own history by default; ADMIN may filter by any user handle. */
+    @GetMapping
+    public SubmissionPage history(@RequestParam(required = false) String user,
+                                 @RequestParam(required = false) Long problem,
+                                 @RequestParam(required = false) Long contest,
+                                 @RequestParam(defaultValue = "0") int page,
+                                 @RequestParam(defaultValue = "20") int size,
+                                 @AuthenticationPrincipal User viewer) {
+        return service.history(viewer, user, problem, contest, page, size);
     }
 
     /** Full submission incl. per-testcase results. Owner or ADMIN only (404 otherwise). */
