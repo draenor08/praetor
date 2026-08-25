@@ -1,0 +1,105 @@
+name: CI
+
+# Every push and every pull request. Until this existed, no pull request in this project had ever
+# been compiled by a machine: unit tests passed while the app could not start, and `main` was
+# merged unbuilt more than once.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch cancels the first — the older run's answer is already stale.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend — 187 tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Java 21 because pom.xml sets <java.version>21</java.version> on Spring Boot 3.3.4.
+      # Do not "upgrade" this: on 26 Mockito fails with "Java 26 (70) is not supported", because
+      # ByteBuddy cannot instrument that class-file version, and 59 tests error in whole-class
+      # blocks that look like mass breakage and are pure tooling.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run the test suite
+        run: mvn -B -f backend/pom.xml test
+
+      # Tests are mocked to the last repository, so compiling is a separate question from passing.
+      - name: Package
+        run: mvn -B -f backend/pom.xml -DskipTests package
+
+  frontend:
+    name: Frontend — build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      # The `docker` configuration is what actually ships, and it inherits nothing from
+      # `production` — building the default here would leave the shipped one unchecked.
+      # There is no frontend test runner, so this build IS the frontend's only gate: Angular's
+      # strict template checking is what catches a bad binding.
+      - name: Build (docker configuration, as shipped)
+        working-directory: frontend
+        run: npm run build -- --configuration docker
+
+  e2e:
+    name: E2E — the only thing that executes a repository @Query
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      # Every backend test mocks its repositories, so a broken JPQL, a bad Spring-Data-derived
+      # count query or a parameter-cast problem reaches production rather than CI. This job is the
+      # only place any @Query is executed at all. It is also the only proof the standings-freeze
+      # filter works, since that filter lives in SQL.
+      - name: Write .env
+        run: |
+          cp .env.example .env
+          # The app refuses to boot without this, and requires at least 32 characters.
+          sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$(openssl rand -hex 32)|" .env
+
+      # Must exist before anything is judged, or every submission dies on "javac: not found".
+      # gcc:14 + python3 + a JDK, so it is the slow step.
+      - name: Build the judge sandbox image
+        run: docker build -t praetor-judge:latest judge/
+
+      - name: Bring the stack up
+        run: docker compose up -d --build
+
+      - name: Wait for the backend
+        run: |
+          curl -sf --retry 60 --retry-delay 2 --retry-connrefused \
+               http://localhost:8080/actuator/health
+
+      - name: Run the journey
+        run: node scripts/e2e.mjs
+
+      # The e2e prints the failing response, but a failure inside the judge or at startup shows up
+      # only here. Without this a red run means re-running it locally to learn anything.
+      - name: Backend logs (on failure)
+        if: failure()
+        run: docker compose logs --no-color backend
