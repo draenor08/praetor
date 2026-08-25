@@ -36,7 +36,7 @@ export class ShellComponent {
   private router = inject(Router);
 
   // Primary sections. The target pages are owned by different teammates and
-  // land incrementally; until each ships, its route resolves to ComingSoon.
+  // landed incrementally; as of FR-10 every one of them resolves to a real page.
   readonly links: RailLink[] = [
     { path: '/', label: 'Home', icon: '⌂', exact: true },
     { path: '/problems', label: 'Problems', icon: '§' },

@@ -1,3 +1,5 @@
+<!-- The container owns the live region. Putting role="alert" on each item as well made it
+     implicitly assertive inside a polite region, which some screen readers announce twice. -->
 <div class="toast-container" aria-live="polite" aria-atomic="true">
   @for (toast of toasts(); track toast.id) {
     <div
@@ -6,7 +8,6 @@
       [class.toast-error]="toast.type === 'error'"
       [class.toast-warning]="toast.type === 'warning'"
       [class.toast-info]="toast.type === 'info'"
-      role="alert"
     >
       <div class="toast-icon">
         @switch (toast.type) {

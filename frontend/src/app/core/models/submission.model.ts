@@ -40,3 +40,27 @@ export interface SubmissionResponse {
   practice: boolean;
   results: TestResult[];
 }
+
+/**
+ * One row of GET /api/submissions (FR-10). Deliberately lighter than SubmissionResponse: no
+ * sourceCode and no per-test results, so the list cannot route around the owner/ADMIN gate on
+ * GET /api/submissions/{id}.
+ */
+export interface SubmissionSummary {
+  id: number;
+  handle: string;
+  problemSlug: string;
+  language: string;
+  status: string;
+  verdict: string | null;
+  score: number | null;
+  createdAt: string;
+}
+
+/** GET /api/submissions — paginated history, newest first. */
+export interface SubmissionPage {
+  content: SubmissionSummary[];
+  page: number;
+  size: number;
+  totalElements: number;
+}

@@ -2,10 +2,10 @@ import { Routes } from '@angular/router';
 import { LoginComponent } from './features/auth/login/login.component';
 import { RegisterComponent } from './features/auth/register/register.component';
 import { ShellComponent } from './layout/shell/shell.component';
-import { ComingSoonComponent } from './shared/components/coming-soon/coming-soon.component';
 import { ProblemListComponent } from './features/problems/problem-list/problem-list.component';
 import { ProblemDetailComponent } from './features/problems/problem-detail/problem-detail.component';
 import { SubmissionDetailComponent } from './features/submissions/submission-detail/submission-detail.component';
+import { SubmissionsListComponent } from './features/submissions/submissions-list/submissions-list.component';
 import { ContestListComponent } from './features/contests/contest-list/contest-list.component';
 import { ContestDetailComponent } from './features/contests/contest-detail/contest-detail.component';
 import { StandingsListComponent } from './features/contests/standings-list/standings-list.component';
@@ -32,9 +32,9 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
 
-  // Everything else lives inside the authenticated shell. Section pages are
-  // owned by different teammates and land incrementally; until each ships its
-  // route resolves to ComingSoon. Swap `component` when the real page is ready.
+  // Everything else lives inside the authenticated shell. Every section now resolves to a real
+  // page — ComingSoonComponent is no longer routed anywhere, and the component is kept only as
+  // the placeholder to reach for if a future section needs one.
   {
     path: '',
     component: ShellComponent,
@@ -62,7 +62,7 @@ export const routes: Routes = [
       // The contest page carries the same board inline; both share StandingsLiveComponent.
       { path: 'standings', component: StandingsListComponent },
       { path: 'standings/:id', component: ContestStandingsComponent },
-      { path: 'submissions', component: ComingSoonComponent, data: { title: 'Submissions' } },
+      { path: 'submissions', component: SubmissionsListComponent },
       { path: 'leaderboard', component: LeaderboardComponent },
       { path: 'profile', component: ProfileComponent },
 
