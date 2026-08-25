@@ -347,14 +347,107 @@ async function main() {
   check('negative page → 400', badPage.status === 400, badPage);
 
   const stats = await call('GET', '/api/users/alice/stats', { token: alice });
-  check('solve stats → 200 with a body', stats.status === 200 && typeof stats.body === 'object',
-    stats.body);
-  // Deliberately not asserting the field names yet. The shipped shape
-  // ({username, solvedCount, submissionCount, acceptanceRate}) does not match
-  // docs/api-contracts.md ({solved, attempted, accuracy, byVerdict}); the assertions for the
-  // contract shape, the accuracy formula, the 404 on an unknown handle, and the contest-end
-  // filter on the counts land together with those fixes. Keeping them out now so this script
-  // stays green on main.
+  check('solve stats → 200', stats.status === 200, stats.body);
+
+  check('stats carry the contract fields and nothing else',
+    JSON.stringify(Object.keys(stats.body ?? {}).sort())
+      === JSON.stringify(['accuracy', 'attempted', 'byVerdict', 'solved']),
+    Object.keys(stats.body ?? {}));
+
+  const tally = Object.values(stats.body?.byVerdict ?? {}).reduce((a, b) => a + b, 0);
+  check('byVerdict sums to attempted (so nothing unjudged is counted)',
+    tally === stats.body?.attempted, { tally, attempted: stats.body?.attempted });
+
+  // The shipped version divided distinct problems solved by total submissions, mixing units.
+  const accepted = stats.body?.byVerdict?.AC ?? 0;
+  const expectedAccuracy = stats.body.attempted === 0
+    ? 0
+    : Math.round((accepted / stats.body.attempted) * 10_000) / 10_000;
+  check('accuracy is accepted submissions over attempted, not problems over submissions',
+    stats.body?.accuracy === expectedAccuracy,
+    { accuracy: stats.body?.accuracy, expectedAccuracy, accepted, attempted: stats.body?.attempted });
+
+  check('solved never exceeds accepted submissions',
+    stats.body?.solved <= accepted, { solved: stats.body?.solved, accepted });
+
+  const ghostStats = await call('GET', `/api/users/ghost-${RUN}/stats`, { token: alice });
+  check('unknown handle → 404 (not a 500 from an unmapped exception)',
+    ghostStats.status === 404, ghostStats);
+
+
+  section('Solve stats do not leak a live contest (FR-25 x FR-18)');
+  // The one check that actually proves the contest-end filter, because the filter lives in SQL and
+  // every backend test mocks its repositories. A rising solved count during a freeze tells a rival
+  // exactly what the standings board is withholding, so an aggregate is a side channel like any
+  // other. A fresh problem is used rather than the one above, which by now has submissions and so
+  // is no longer eligible for a contest.
+  const freezeSlug = `e2e-freeze-${RUN}`;
+  const freezeProblem = await call('POST', '/api/problems', {
+    token: setter,
+    body: {
+      slug: freezeSlug, title: 'E2E Freeze Sum', statement: 'Read two integers. Output their sum.',
+      difficulty: 800, timeLimitMs: 2000, memLimitKb: 262144, judgeMode: 'EXACT',
+      // draft = archived and unpublished. A contest may only use a problem that has never been
+      // publicly visible, and published_at is stamped on creation otherwise, never cleared.
+      draft: true
+    }
+  });
+  check('fresh problem for the live contest → 201', freezeProblem.status === 201, freezeProblem);
+
+  const freezeCases = await call('POST', `/api/problems/${freezeSlug}/testcases/bulk`, {
+    token: setter,
+    body: { mode: 'REPLACE', cases: [{ ord: 1, kind: 'SAMPLE', input: '2 3\n', expected: '5\n', points: 0 }] }
+  });
+  check('its test case → 201', freezeCases.status === 201, freezeCases);
+
+  const before = await call('GET', '/api/users/alice/stats', { token: alice });
+  check('baseline stats readable', before.status === 200, before);
+
+  // Starts a minute ago, ends in an hour: live right now, so nothing in it may count yet.
+  const liveContest = await call('POST', '/api/contests', {
+    token: admin,
+    body: {
+      title: `E2E Live ${RUN}`,
+      startsAt: new Date(Date.now() - 60_000).toISOString(),
+      endsAt: new Date(Date.now() + 3_600_000).toISOString(),
+      freezeMin: 0,
+      scoring: 'ICPC',
+      problems: [{ problemId: freezeProblem.body?.id, label: 'A', ord: 1 }]
+    }
+  });
+  check('live contest created → 201', liveContest.status === 201, liveContest);
+
+  const joined = await call('POST', `/api/contests/${liveContest.body?.id}/register`, {
+    token: alice, body: { virtual: false }
+  });
+  check('alice registers → 201', joined.status === 201, joined);
+
+  await sleep(COOLDOWN_SEC * 1000);
+  const inContest = await call('POST', '/api/submissions', {
+    token: alice,
+    body: {
+      problemSlug: freezeSlug, contestId: liveContest.body?.id, language: 'CPP',
+      sourceCode: '#include <iostream>\nint main(){long long a,b;std::cin>>a>>b;std::cout<<a+b<<"\\n";}'
+    }
+  });
+  check('in-contest submission accepted → 202', inContest.status === 202, inContest);
+
+  const contestVerdict = await waitForVerdict(inContest.body?.id, alice);
+  check('it really was judged AC (so only the filter can be hiding it)',
+    contestVerdict?.verdict === 'AC', { verdict: contestVerdict?.verdict });
+
+  const after = await call('GET', '/api/users/alice/stats', { token: alice });
+  check('attempted did NOT rise for a contest still running',
+    after.body?.attempted === before.body?.attempted,
+    { before: before.body?.attempted, after: after.body?.attempted });
+  check('solved did NOT rise for a contest still running',
+    after.body?.solved === before.body?.solved,
+    { before: before.body?.solved, after: after.body?.solved });
+
+  // The filter is specific to aggregates: your own history is yours to read in full, live or not.
+  const ownRows = await call('GET', `/api/submissions?contest=${liveContest.body?.id}`, { token: alice });
+  check('the same submission IS visible in the owner\'s own history',
+    ownRows.status === 200 && (ownRows.body?.content?.length ?? 0) >= 1, ownRows.body);
 
   section('Cleanup');
   // The problem now has submissions, so it cannot be hard-deleted — that is the guard working,
@@ -366,7 +459,9 @@ async function main() {
   check('re-archived so the public list stays clean', reArchived.status === 200, reArchived);
 
   console.log(`\n${passed} checks passed.`);
-  console.log(`Left behind: archived problem "${slug}" (it has submissions, so it cannot be deleted).`);
+  console.log(`Left behind: archived problem "${slug}" (it has submissions, so it cannot be deleted),`);
+  console.log(`             plus draft problem "${freezeSlug}" and the live contest holding it —`);
+  console.log('             that contest ends an hour from now and will publish the problem then.');
 }
 
 main().catch((err) => {

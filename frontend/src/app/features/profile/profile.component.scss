@@ -69,6 +69,22 @@
   color: var(--text-muted);
 }
 
+.verdicts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.verdict-chip {
+  padding: 1px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
 .rank {
   margin-left: 0.5rem;
   color: var(--text-muted);

@@ -13,6 +13,7 @@ import {
   TestCaseRow
 } from '../models/problem.model';
 import { SubmissionCreated, SubmissionResponse, SubmitRequest } from '../models/submission.model';
+import { ProfileSolveStats } from '../models/profile.model';
 import {
   ContestDetail,
   ContestSummary,
@@ -146,8 +147,9 @@ export class ApiService {
     return this.http.get<UserRating>(`/api/users/${handle}/rating`);
   }
 
-  getUserSolveStats(handle: string): Observable<import('../models/profile.model').ProfileSolveStats> {
-    return this.http.get<import('../models/profile.model').ProfileSolveStats>(`/api/users/${handle}/stats`);
+  /** Solve statistics for a profile (FR-25). */
+  getUserSolveStats(handle: string): Observable<ProfileSolveStats> {
+    return this.http.get<ProfileSolveStats>(`/api/users/${handle}/stats`);
   }
 
   // --- Setter workspace (PROBLEM_SETTER / ADMIN) ---------------------------

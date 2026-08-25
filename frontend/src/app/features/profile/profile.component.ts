@@ -84,6 +84,15 @@ export class ProfileComponent implements OnInit {
     });
   }
 
+  /**
+   * The verdict breakdown in the order the API returned it (commonest first). Going through
+   * Object.entries rather than the keyvalue pipe keeps that order — keyvalue re-sorts by key.
+   */
+  get verdictBreakdown(): { verdict: string; count: number }[] {
+    return Object.entries(this.profileStats?.byVerdict ?? {})
+      .map(([verdict, count]) => ({ verdict, count }));
+  }
+
   contestLabel(contestId: number): string {
     return this.contestTitles.get(contestId) ?? `Contest #${contestId}`;
   }
