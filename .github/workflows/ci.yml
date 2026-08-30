@@ -90,9 +90,13 @@ jobs:
       - name: Bring the stack up
         run: docker compose up -d --build
 
+      # Docker publishes 8080 before the backend is listening on it, so docker-proxy accepts the
+      # connection and immediately resets it: curl exit 56, a reset, not a refusal. Neither
+      # --retry-connrefused (refusals only) nor plain --retry (5xx and timeouts only) treats that as
+      # retryable, so the first attempt was fatal after 30ms. --retry-all-errors is what covers it.
       - name: Wait for the backend
         run: |
-          curl -sf --retry 60 --retry-delay 2 --retry-connrefused \
+          curl -sf --retry 60 --retry-delay 2 --retry-all-errors \
                http://localhost:8080/actuator/health
 
       - name: Run the journey
