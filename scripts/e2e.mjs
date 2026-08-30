@@ -192,9 +192,14 @@ async function main() {
     !JSON.stringify(judged?.results ?? []).includes('100 200'), judged?.results);
 
   section('Rate limit (cooldown)');
-  // Start from a clean window: judging the submission above took longer than the cooldown, so
-  // the first submit here must be the one that opens it. Two calls back-to-back, no waiting
-  // between them — otherwise this measures nothing.
+  // This section needs a clean window, and it used to get one by accident: locally, judging the
+  // submission above took longer than the cooldown. On a CI runner judging finished in ~1s, the
+  // accepted submission above was still inside the window, and the first submit here came back 429
+  // with retryAfterSec 9. Wait the window out explicitly rather than depend on judging being slow.
+  console.log(`  ...waiting ${COOLDOWN_SEC + 1}s to clear the cooldown from the judged submission`);
+  await sleep((COOLDOWN_SEC + 1) * 1000);
+
+  // Two calls back-to-back from here, no waiting between them — otherwise this measures nothing.
   const first = await call('POST', '/api/submissions', {
     token: alice,
     body: { problemSlug: slug, language: 'CPP', sourceCode: 'int main(){}' }
