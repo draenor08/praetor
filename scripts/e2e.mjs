@@ -191,6 +191,27 @@ async function main() {
     judged?.results?.every((r) => r.input == null || r.ord === undefined) !== false &&
     !JSON.stringify(judged?.results ?? []).includes('100 200'), judged?.results);
 
+  section('Rejudge (FR-27)');
+  // Rejudge is in-place: same submission id, results wiped, row back to QUEUED. Nothing else
+  // executes this path — there is no unit test for it, and a browser pass cannot assert the reset.
+  const rejudgeAsUser = await call('POST', `/api/submissions/${submitted.body.id}/rejudge`, { token: alice });
+  check('contestant cannot rejudge → 403', rejudgeAsUser.status === 403, rejudgeAsUser);
+
+  const rejudgeMissing = await call('POST', '/api/submissions/99999999/rejudge', { token: admin });
+  check('rejudging a submission that does not exist → 404', rejudgeMissing.status === 404, rejudgeMissing);
+
+  const rejudged = await call('POST', `/api/submissions/${submitted.body.id}/rejudge`, { token: admin });
+  check('ADMIN rejudge → 202, same id, back to QUEUED',
+    rejudged.status === 202 &&
+    rejudged.body?.id === submitted.body.id &&
+    rejudged.body?.status === 'QUEUED', rejudged);
+
+  const rejudgedVerdict = await waitForVerdict(submitted.body.id, alice);
+  check('the rejudged submission lands on the same verdict',
+    rejudgedVerdict?.verdict === 'AC', { verdict: rejudgedVerdict?.verdict });
+  check('rejudge rebuilt the per-testcase rows rather than doubling them',
+    rejudgedVerdict?.results?.length === 3, rejudgedVerdict?.results?.length);
+
   section('Rate limit (cooldown)');
   // This section needs a clean window, and it used to get one by accident: locally, judging the
   // submission above took longer than the cooldown. On a CI runner judging finished in ~1s, the
@@ -313,6 +334,78 @@ async function main() {
       judged?.status === 'DONE' && judged?.verdict === 'AC',
       { status: judged?.status, verdict: judged?.verdict, compileLog: judged?.compileLog });
   }
+
+  section('Verdict matrix (FR-6, FR-7, FR-9)');
+  // Until this section existed the judge was only ever proven on the happy path: every e2e
+  // submission was AC. WA/TLE/MLE/RE each come from a DIFFERENT branch of VerdictEvaluator, and a
+  // change to the sandbox can break one while leaving AC green. One seed user per verdict, so the
+  // per-user cooldown never has to be slept off.
+  const vSlug = `e2e-verdicts-${RUN}`;
+  const madeV = await call('POST', '/api/problems', {
+    token: setter,
+    body: {
+      slug: vSlug, title: `Verdict Matrix ${RUN}`, statement: 'Print 1.',
+      difficulty: 800,
+      timeLimitMs: 1000,
+      // 64 MB, comfortably under the 256 MB container cap, so MLE is decided by the MEASURED peak
+      // RSS rule rather than by the container OOM-killing the process.
+      memLimitKb: 65536,
+      judgeMode: 'EXACT'
+    }
+  });
+  check('verdict-matrix problem created → 201', madeV.status === 201, madeV);
+
+  const vCases = await call('POST', `/api/problems/${vSlug}/testcases/bulk`, {
+    token: setter,
+    body: {
+      mode: 'REPLACE',
+      cases: [
+        { ord: 1, kind: 'SAMPLE', input: '1\n', expected: '1\n', points: 0 },
+        { ord: 2, kind: 'HIDDEN', input: '1\n', expected: '1\n', points: 0 }
+      ]
+    }
+  });
+  check('verdict-matrix test cases → 201', vCases.status === 201, vCases);
+
+  const bob = await login('bob');
+  const carol = await login('carol');
+  const dan = await login('dan');
+  const erin = await login('erin');
+
+  async function verdictOf(token, sourceCode, language = 'CPP') {
+    const res = await call('POST', '/api/submissions', {
+      token, body: { problemSlug: vSlug, language, sourceCode }
+    });
+    if (res.status !== 202) {
+      return { status: res.status, body: res.body };
+    }
+    return await waitForVerdict(res.body.id, token);
+  }
+
+  const wa = await verdictOf(bob, '#include <iostream>\nint main(){std::cout<<"2\\n";}');
+  check('wrong output → WA', wa?.verdict === 'WA', { verdict: wa?.verdict });
+  check('WA stops at the first failing case (FR-6: no rows past the break)',
+    wa?.results?.length === 1 && wa.results[0].verdict === 'WA', wa?.results);
+
+  const tle = await verdictOf(carol,
+    '#include <iostream>\nint main(){volatile long x=0;while(1){x++;}}');
+  check('never terminates → TLE (hard wall-clock kill)', tle?.verdict === 'TLE',
+    { verdict: tle?.verdict, timeMs: tle?.timeMs });
+
+  const mle = await verdictOf(dan,
+    '#include <iostream>\n#include <cstdlib>\nint main(){size_t n=192ul*1024*1024;'
+    + 'char*p=(char*)malloc(n);for(size_t i=0;i<n;i+=4096)p[i]=1;std::cout<<"1\\n";}');
+  check('peak RSS over the problem limit → MLE', mle?.verdict === 'MLE',
+    { verdict: mle?.verdict, memKb: mle?.memKb });
+
+  const re = await verdictOf(erin, 'int main(){return 3;}');
+  check('non-zero exit → RE', re?.verdict === 'RE', { verdict: re?.verdict });
+
+  const ce = await verdictOf(admin, 'int main(){ this is not c++ }');
+  check('does not compile → CE', ce?.verdict === 'CE', { verdict: ce?.verdict });
+  check('CE carries the compiler output and no test-case rows (FR-9)',
+    typeof ce?.compileLog === 'string' && ce.compileLog.length > 0 &&
+    (ce?.results?.length ?? 0) === 0, { log: ce?.compileLog?.slice(0, 120), rows: ce?.results?.length });
 
   section('Submission history + solve stats (FR-10, FR-25)');
   // These endpoints are the only place a repository @Query is exercised at all — the backend
@@ -454,6 +547,95 @@ async function main() {
   check('the same submission IS visible in the owner\'s own history',
     ownRows.status === 200 && (ownRows.body?.content?.length ?? 0) >= 1, ownRows.body);
 
+  section('Search, filter and tags (FR-14, FR-15)');
+  // The list query is the most complex native SQL in the backend — CSV tag splitting, AND-tag
+  // semantics, a literal-not-wildcard search — and every backend test mocks the repository, so
+  // nothing but this section ever executes it.
+  const tagDp = `e2e-dp-${RUN}`;
+  const tagGraph = `e2e-graph-${RUN}`;
+  const slugA = `e2e-find-alpha-${RUN}`;
+  const slugB = `e2e-find-beta-${RUN}`;
+
+  const madeA = await call('POST', '/api/problems', {
+    token: setter,
+    body: {
+      slug: slugA, title: `Zircon${RUN} Alpha`, statement: 'x', difficulty: 1200,
+      tags: [tagDp, tagGraph]
+    }
+  });
+  const madeB = await call('POST', '/api/problems', {
+    token: setter,
+    body: {
+      slug: slugB, title: `Zircon${RUN} Beta`, statement: 'x', difficulty: 900,
+      tags: [tagDp]
+    }
+  });
+  check('two tagged problems created → 201',
+    madeA.status === 201 && madeB.status === 201, { a: madeA.status, b: madeB.status });
+
+  const vocab = await call('GET', '/api/tags');
+  check('GET /api/tags is public and carries the new tags',
+    vocab.status === 200 && vocab.body?.includes(tagDp) && vocab.body?.includes(tagGraph),
+    vocab.body?.length);
+
+  const slugsOf = (res) => (res.body ?? []).map((x) => x.slug);
+
+  const byText = await call('GET', `/api/problems?q=Zircon${RUN}%20Alpha`);
+  check('q matches the title, and only the matching problem',
+    slugsOf(byText).includes(slugA) && !slugsOf(byText).includes(slugB), slugsOf(byText));
+
+  const bySlugText = await call('GET', `/api/problems?q=find-beta-${RUN}`);
+  check('q matches the slug too', slugsOf(bySlugText).includes(slugB), slugsOf(bySlugText));
+
+  const literal = await call('GET', '/api/problems?q=%25');
+  check('a literal % in q is not a wildcard',
+    literal.status === 200 && literal.body?.length === 0, literal.body?.length);
+
+  const oneTag = await call('GET', `/api/problems?tags=${tagDp}`);
+  check('one tag returns every problem carrying it',
+    slugsOf(oneTag).includes(slugA) && slugsOf(oneTag).includes(slugB), slugsOf(oneTag));
+
+  const bothTags = await call('GET', `/api/problems?tags=${tagDp}&tags=${tagGraph}`);
+  check('two tags are AND, not OR',
+    slugsOf(bothTags).includes(slugA) && !slugsOf(bothTags).includes(slugB), slugsOf(bothTags));
+
+  const absentTag = await call('GET', `/api/problems?tags=${tagDp}&tags=e2e-absent-${RUN}`);
+  check('a tag nothing carries empties the result, rather than erroring',
+    absentTag.status === 200 && !slugsOf(absentTag).includes(slugA), absentTag.body?.length);
+
+  const minDiff = await call('GET', `/api/problems?minDifficulty=1000&q=Zircon${RUN}`);
+  check('minDifficulty excludes the easier problem',
+    slugsOf(minDiff).includes(slugA) && !slugsOf(minDiff).includes(slugB), slugsOf(minDiff));
+
+  const maxDiff = await call('GET', `/api/problems?maxDifficulty=1000&q=Zircon${RUN}`);
+  check('maxDifficulty excludes the harder problem',
+    slugsOf(maxDiff).includes(slugB) && !slugsOf(maxDiff).includes(slugA), slugsOf(maxDiff));
+
+  const band = await call('GET', `/api/problems?minDifficulty=1000&maxDifficulty=1100&q=Zircon${RUN}`);
+  check('a band that spans neither returns neither',
+    !slugsOf(band).includes(slugA) && !slugsOf(band).includes(slugB), slugsOf(band));
+
+  const rowA = (oneTag.body ?? []).find((x) => x.slug === slugA);
+  check('list rows carry their tags (FR-14 list contract)',
+    Array.isArray(rowA?.tags) && rowA.tags.includes(tagDp) && rowA.tags.includes(tagGraph), rowA);
+
+  const unfiltered = await call('GET', '/api/problems');
+  check('omitting every filter still returns the whole list',
+    unfiltered.status === 200 && slugsOf(unfiltered).includes(slugA), unfiltered.body?.length);
+
+  const commaTag = await call('POST', '/api/problems', {
+    token: setter,
+    body: { slug: `e2e-comma-${RUN}`, title: 'x', statement: 'x', tags: ['a,b'] }
+  });
+  check('a comma inside a tag is refused → 400 (it would split the CSV filter)',
+    commaTag.status === 400, commaTag);
+
+  // These two carry no submissions, so the delete guard lets them go.
+  const delA = await call('DELETE', `/api/problems/${slugA}`, { token: admin });
+  const delB = await call('DELETE', `/api/problems/${slugB}`, { token: admin });
+  check('the search fixtures delete cleanly',
+    delA.status === 204 && delB.status === 204, { a: delA.status, b: delB.status });
+
   section('Cleanup');
   // The problem now has submissions, so it cannot be hard-deleted — that is the guard working,
   // not a failure. It is left archived and out of the public list, named with this run's suffix.
@@ -462,6 +644,10 @@ async function main() {
     restored.status === 200, restored);
   const reArchived = await call('POST', `/api/problems/${slug}/archive`, { token: setter });
   check('re-archived so the public list stays clean', reArchived.status === 200, reArchived);
+
+  // The verdict-matrix problem has submissions too, so it is archived rather than deleted.
+  const vArchived = await call('POST', `/api/problems/${vSlug}/archive`, { token: setter });
+  check('verdict-matrix problem archived out of the public list', vArchived.status === 200, vArchived);
 
   console.log(`\n${passed} checks passed.`);
   console.log(`Left behind: archived problem "${slug}" (it has submissions, so it cannot be deleted),`);
