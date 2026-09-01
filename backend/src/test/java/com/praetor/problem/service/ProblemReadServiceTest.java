@@ -172,7 +172,7 @@ class ProblemReadServiceTest {
     @Test
     void anInvertedDifficultyRangeIsRejectedBeforeItReachesSql() {
 
-        Throwable t = catchThrowable(() -> service.list(null, null, 1500, 800, null));
+        Throwable t = catchThrowable(() -> service.list(null, null, 1500, 800, null, 0, 50));
 
         assertThat(t).isInstanceOf(ResponseStatusException.class);
         assertThat(((ResponseStatusException) t).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -182,7 +182,23 @@ class ProblemReadServiceTest {
                         org.mockito.ArgumentMatchers.any(),
                         org.mockito.ArgumentMatchers.any(),
                         org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.anyInt(),
+                        org.mockito.ArgumentMatchers.anyInt(),
                         org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    void theListRejectsOutOfRangePaging() {
+
+        assertThat(((ResponseStatusException) catchThrowable(
+                () -> service.list(null, null, null, null, null, -1, 50))).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(((ResponseStatusException) catchThrowable(
+                () -> service.list(null, null, null, null, null, 0, 0))).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(((ResponseStatusException) catchThrowable(
+                () -> service.list(null, null, null, null, null, 0, 101))).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
@@ -190,7 +206,7 @@ class ProblemReadServiceTest {
 
         List<String> tooMany = List.of("a", "b", "c", "d", "e", "f", "g", "h", "i");
 
-        Throwable t = catchThrowable(() -> service.list(null, null, null, null, tooMany));
+        Throwable t = catchThrowable(() -> service.list(null, null, null, null, tooMany, 0, 50));
 
         assertThat(t).isInstanceOf(ResponseStatusException.class);
         assertThat(((ResponseStatusException) t).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -199,7 +215,7 @@ class ProblemReadServiceTest {
     @Test
     void aTagFilterCarryingACommaIsRejectedBecauseSqlSplitsOnIt() {
 
-        Throwable t = catchThrowable(() -> service.list(null, null, null, null, List.of("dp,greedy")));
+        Throwable t = catchThrowable(() -> service.list(null, null, null, null, List.of("dp,greedy"), 0, 50));
 
         assertThat(t).isInstanceOf(ResponseStatusException.class);
         assertThat(((ResponseStatusException) t).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);

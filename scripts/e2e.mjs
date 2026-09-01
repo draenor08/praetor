@@ -280,7 +280,7 @@ async function main() {
 
   const publicList = await call('GET', '/api/problems');
   check('archived problem leaves the public list',
-    !publicList.body?.some((p) => p.slug === slug), publicList.body?.length);
+    !publicList.body?.content?.some((p) => p.slug === slug), publicList.body?.totalElements);
 
   const stillManaged = await call('GET', '/api/setter/problems', { token: setter });
   check('archived problem stays in the workspace',
@@ -765,7 +765,7 @@ async function main() {
     vocab.status === 200 && vocab.body?.includes(tagDp) && vocab.body?.includes(tagGraph),
     vocab.body?.length);
 
-  const slugsOf = (res) => (res.body ?? []).map((x) => x.slug);
+  const slugsOf = (res) => (res.body?.content ?? []).map((x) => x.slug);
 
   const byText = await call('GET', `/api/problems?q=Zircon${RUN}%20Alpha`);
   check('q matches the title, and only the matching problem',
@@ -776,7 +776,7 @@ async function main() {
 
   const literal = await call('GET', '/api/problems?q=%25');
   check('a literal % in q is not a wildcard',
-    literal.status === 200 && literal.body?.length === 0, literal.body?.length);
+    literal.status === 200 && literal.body?.content?.length === 0, literal.body?.totalElements);
 
   const oneTag = await call('GET', `/api/problems?tags=${tagDp}`);
   check('one tag returns every problem carrying it',
@@ -788,7 +788,7 @@ async function main() {
 
   const absentTag = await call('GET', `/api/problems?tags=${tagDp}&tags=e2e-absent-${RUN}`);
   check('a tag nothing carries empties the result, rather than erroring',
-    absentTag.status === 200 && !slugsOf(absentTag).includes(slugA), absentTag.body?.length);
+    absentTag.status === 200 && !slugsOf(absentTag).includes(slugA), absentTag.body?.totalElements);
 
   const minDiff = await call('GET', `/api/problems?minDifficulty=1000&q=Zircon${RUN}`);
   check('minDifficulty excludes the easier problem',
@@ -802,13 +802,35 @@ async function main() {
   check('a band that spans neither returns neither',
     !slugsOf(band).includes(slugA) && !slugsOf(band).includes(slugB), slugsOf(band));
 
-  const rowA = (oneTag.body ?? []).find((x) => x.slug === slugA);
+  const rowA = (oneTag.body?.content ?? []).find((x) => x.slug === slugA);
   check('list rows carry their tags (FR-14 list contract)',
     Array.isArray(rowA?.tags) && rowA.tags.includes(tagDp) && rowA.tags.includes(tagGraph), rowA);
 
   const unfiltered = await call('GET', '/api/problems');
-  check('omitting every filter still returns the whole list',
-    unfiltered.status === 200 && slugsOf(unfiltered).includes(slugA), unfiltered.body?.length);
+  check('omitting every filter still returns the first page of the catalogue',
+    unfiltered.status === 200 && slugsOf(unfiltered).includes(slugA), unfiltered.body?.totalElements);
+
+  // --- paging (FR-15) ---------------------------------------------------------------------
+  const pageOne = await call('GET', `/api/problems?q=Zircon${RUN}&page=0&size=1`);
+  check('size is honoured and the envelope reports the true total',
+    pageOne.body?.content?.length === 1 && pageOne.body?.totalElements === 2 &&
+    pageOne.body?.page === 0 && pageOne.body?.size === 1, pageOne.body);
+
+  const pageTwo = await call('GET', `/api/problems?q=Zircon${RUN}&page=1&size=1`);
+  check('the second page is a different problem, not a repeat of the first',
+    pageTwo.body?.content?.length === 1 &&
+    pageTwo.body.content[0].slug !== pageOne.body.content[0].slug, pageTwo.body);
+
+  const pastEnd = await call('GET', `/api/problems?q=Zircon${RUN}&page=9&size=1`);
+  check('a page past the end is empty but still reports the total',
+    pastEnd.status === 200 && pastEnd.body?.content?.length === 0 &&
+    pastEnd.body?.totalElements === 2, pastEnd.body);
+
+  const badListSize = await call('GET', '/api/problems?size=500');
+  check('problem-list size above the cap → 400', badListSize.status === 400, badListSize);
+
+  const badListPage = await call('GET', '/api/problems?page=-1');
+  check('problem-list negative page → 400', badListPage.status === 400, badListPage);
 
   const commaTag = await call('POST', '/api/problems', {
     token: setter,

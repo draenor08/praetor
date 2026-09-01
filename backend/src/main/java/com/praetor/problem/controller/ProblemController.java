@@ -2,6 +2,7 @@ package com.praetor.problem.controller;
 
 import com.praetor.identity.entity.User;
 import com.praetor.problem.dto.ProblemDetail;
+import com.praetor.problem.dto.ProblemPage;
 import com.praetor.problem.dto.ProblemRequest;
 import com.praetor.problem.dto.ProblemResponse;
 import com.praetor.problem.dto.ProblemSummary;
@@ -42,19 +43,25 @@ public class ProblemController {
      * {@link com.praetor.problem.config.ProblemWebSecurityConfig}) — the JWT is optional there, so
      * {@code user} is null for an anonymous reader and the contest embargo applies.
      *
-     * <p>Every parameter is optional and omitting all of them yields the full list, so the plain
-     * {@code GET /api/problems} contract is unchanged. Repeat {@code tags} to require several
-     * ({@code ?tags=math&tags=greedy} matches problems carrying both).
+     * <p>Every filter is optional; omitting all of them yields the first page of the whole
+     * catalogue. Repeat {@code tags} to require several ({@code ?tags=math&tags=greedy} matches
+     * problems carrying both).
+     *
+     * <p>Paged, in the same envelope as the submission history: the list used to return every
+     * matching row, so the response grew without bound as the catalogue did. {@code size} defaults
+     * to 50 and is capped at 100.
      */
     @GetMapping
-    public List<ProblemSummary> list(
+    public ProblemPage list(
             @AuthenticationPrincipal User user,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Integer minDifficulty,
             @RequestParam(required = false) Integer maxDifficulty,
-            @RequestParam(required = false) List<String> tags) {
+            @RequestParam(required = false) List<String> tags,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
 
-        return readService.list(user, q, minDifficulty, maxDifficulty, tags);
+        return readService.list(user, q, minDifficulty, maxDifficulty, tags, page, size);
     }
 
     /** One problem's statement. Public, but embargoed problems are refused — see the read service. */

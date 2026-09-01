@@ -8,7 +8,7 @@ import {
   ProblemFilter,
   ProblemFull,
   ProblemInput,
-  ProblemSummary,
+  ProblemPage, ProblemSummary,
   ProblemUsage,
   TestCaseRow
 } from '../models/problem.model';
@@ -36,7 +36,7 @@ export class ApiService {
    * The problem list, optionally filtered (FR-15). Only non-empty filters become query params, so
    * an unfiltered call is byte-for-byte the request this method always made.
    */
-  getProblems(filter?: ProblemFilter): Observable<ProblemSummary[]> {
+  getProblems(filter?: ProblemFilter): Observable<ProblemPage> {
     let params = new HttpParams();
     if (filter?.q?.trim()) {
       params = params.set('q', filter.q.trim());
@@ -52,7 +52,7 @@ export class ApiService {
     for (const tag of filter?.tags ?? []) {
       params = params.append('tags', tag);
     }
-    return this.http.get<ProblemSummary[]>('/api/problems', { params });
+    return this.http.get<ProblemPage>('/api/problems', { params });
   }
 
   /** The tag vocabulary, for the filter control's options. */

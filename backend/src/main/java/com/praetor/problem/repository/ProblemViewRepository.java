@@ -75,14 +75,51 @@ public interface ProblemViewRepository extends JpaRepository<ProblemView, Long> 
                          JOIN tags t ON t.id = pt.tag_id
                         WHERE pt.problem_id = p.id
                           AND t.name = ANY(string_to_array(:tagCsv, ','))) = :tagCount)
-            ORDER BY p.difficulty ASC, p.title ASC
+            ORDER BY p.difficulty ASC, p.title ASC, p.id ASC
+            LIMIT :size OFFSET :offset
             """, nativeQuery = true)
     List<ProblemListRow> search(@Param("staff") boolean staff,
                                 @Param("q") String q,
                                 @Param("minDifficulty") Integer minDifficulty,
                                 @Param("maxDifficulty") Integer maxDifficulty,
                                 @Param("tagCsv") String tagCsv,
-                                @Param("tagCount") int tagCount);
+                                @Param("tagCount") int tagCount,
+                                @Param("size") int size,
+                                @Param("offset") int offset);
+
+    /**
+     * How many problems the same filters match, for the page envelope. Deliberately a copy of
+     * {@link #search}'s WHERE clause rather than a derived query: the embargo lives in that clause,
+     * and a count that drifted from it would report rows the caller is not allowed to see.
+     */
+    @Query(value = """
+            SELECT count(*)
+            FROM problems p
+            WHERE p.archived = false
+              AND (:staff = true
+                   OR NOT EXISTS (
+                     SELECT 1 FROM contest_problems cp
+                     JOIN contests c ON c.id = cp.contest_id
+                     WHERE cp.problem_id = p.id
+                       AND now() < c.ends_at))
+              AND (:q = ''
+                   OR position(lower(:q) in lower(p.title)) > 0
+                   OR position(lower(:q) in lower(p.slug)) > 0)
+              AND (:minDifficulty IS NULL OR p.difficulty >= :minDifficulty)
+              AND (:maxDifficulty IS NULL OR p.difficulty <= :maxDifficulty)
+              AND (:tagCsv = ''
+                   OR (SELECT count(DISTINCT t.name)
+                         FROM problem_tags pt
+                         JOIN tags t ON t.id = pt.tag_id
+                        WHERE pt.problem_id = p.id
+                          AND t.name = ANY(string_to_array(:tagCsv, ','))) = :tagCount)
+            """, nativeQuery = true)
+    long countMatching(@Param("staff") boolean staff,
+                       @Param("q") String q,
+                       @Param("minDifficulty") Integer minDifficulty,
+                       @Param("maxDifficulty") Integer maxDifficulty,
+                       @Param("tagCsv") String tagCsv,
+                       @Param("tagCount") int tagCount);
 
     Optional<ProblemView> findBySlug(String slug);
 

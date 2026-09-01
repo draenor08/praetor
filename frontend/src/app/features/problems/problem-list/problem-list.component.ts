@@ -39,6 +39,8 @@ export class ProblemListComponent implements OnInit, OnDestroy {
   ];
 
   problems: ProblemSummary[] = [];
+  /** Total matching the current filter, which can exceed what one page carries. */
+  total = 0;
   allTags: string[] = [];
   loading = true;
   error = '';
@@ -58,8 +60,9 @@ export class ProblemListComponent implements OnInit, OnDestroy {
         switchMap(() => this.api.getProblems(this.currentFilter()))
       )
       .subscribe({
-        next: (list) => {
-          this.problems = list;
+        next: (page) => {
+          this.problems = page.content;
+          this.total = page.totalElements;
           this.loading = false;
           this.error = '';
         },

@@ -219,13 +219,14 @@ public class ProblemService {
 
         List<String> names = normalizeTags(requested);
         tagRepository.deleteTagsOfProblem(problemId);
-        for (String name : names) {
-            tagRepository.insertTagIfAbsent(name);
-            Long tagId = tagRepository.findTagIdByName(name);
-            if (tagId != null) {
-                tagRepository.insertProblemTag(problemId, tagId);
-            }
+        if (names.isEmpty()) {
+            return; // an explicit clear: the delete above is the whole job
         }
+        // Three statements however many tags there are, rather than three per tag. Names carry no
+        // commas (normalizeTags refuses them), which is what makes the CSV round trip safe.
+        String csv = String.join(",", names);
+        tagRepository.insertTagsIfAbsent(csv);
+        tagRepository.attachTags(problemId, csv);
     }
 
     /**

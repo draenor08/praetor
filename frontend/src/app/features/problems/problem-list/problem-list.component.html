@@ -54,3 +54,8 @@
     </tr>
   </tbody>
 </table>
+
+<!-- The list is paged; say so rather than letting a truncated table look like the whole catalogue. -->
+<p class="muted" *ngIf="total > problems.length">
+  Showing {{ problems.length }} of {{ total }} — narrow the filters to see the rest.
+</p>

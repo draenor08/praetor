@@ -7,6 +7,14 @@ export interface ProblemSummary {
   tags: string[];
 }
 
+/** One page of GET /api/problems. Same envelope as the submission history. */
+export interface ProblemPage {
+  content: ProblemSummary[];
+  page: number;
+  size: number;
+  totalElements: number;
+}
+
 /**
  * Query for GET /api/problems (FR-15). Every field is optional and an omitted one is inert, so an
  * empty filter is the plain full list. `tags` is AND — a problem must carry all of them.
