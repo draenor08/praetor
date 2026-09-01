@@ -1,4 +1,4 @@
-import { Component, inject, Input, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
@@ -7,6 +7,7 @@ import { TokenService } from '../../../core/services/token.service';
 import { ContestProblem } from '../../../core/models/contest.model';
 import { Standings } from '../../../core/models/standings.model';
 import { StandingsBoardComponent } from '../standings-board/standings-board.component';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 /**
  * Owns a contest's standings: the initial snapshot, the live WS stream, and the freeze merge rule.
@@ -31,9 +32,11 @@ import { StandingsBoardComponent } from '../standings-board/standings-board.comp
       [problems]="problems"
       [myHandle]="myHandle">
     </app-standings-board>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StandingsLiveComponent implements OnInit, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
   private ws = inject(WsService);
   private tokenService = inject(TokenService);
@@ -58,10 +61,10 @@ export class StandingsLiveComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.api.getStandings(this.contestId).subscribe({ next: (s) => (this.standings = s) });
+    this.api.getStandings(this.contestId).pipe(markDirty(this.cdr)).subscribe({ next: (s) => (this.standings = s) });
 
     this.subs.push(
-      this.ws.standings$(this.contestId).subscribe((board: Standings) => {
+      this.ws.standings$(this.contestId).pipe(markDirty(this.cdr)).subscribe((board: Standings) => {
         // Privileged viewers get the live board on the user queue; skip the frozen topic frame.
         if (this.isPrivileged && board.frozen) {
           return;
@@ -72,7 +75,7 @@ export class StandingsLiveComponent implements OnInit, OnDestroy {
 
     if (this.isPrivileged) {
       this.subs.push(
-        this.ws.liveStandings$(this.contestId).subscribe((board: Standings) => (this.standings = board))
+        this.ws.liveStandings$(this.contestId).pipe(markDirty(this.cdr)).subscribe((board: Standings) => (this.standings = board))
       );
     }
   }

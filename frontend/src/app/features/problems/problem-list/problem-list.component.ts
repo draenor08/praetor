@@ -1,10 +1,11 @@
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subject, debounceTime, switchMap } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { ProblemFilter, ProblemSummary } from '../../../core/models/problem.model';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 /** Difficulty presets, so the common case is one click instead of typing two numbers. */
 interface DifficultyBand {
@@ -25,9 +26,11 @@ interface DifficultyBand {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './problem-list.component.html',
-  styleUrls: ['./problem-list.component.scss']
+  styleUrls: ['./problem-list.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProblemListComponent implements OnInit, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
 
   readonly bands: DifficultyBand[] = [
@@ -59,7 +62,7 @@ export class ProblemListComponent implements OnInit, OnDestroy {
         // switchMap so a slow earlier response cannot land after a newer one and show stale rows.
         switchMap(() => this.api.getProblems(this.currentFilter()))
       )
-      .subscribe({
+      .pipe(markDirty(this.cdr)).subscribe({
         next: (page) => {
           this.problems = page.content;
           this.total = page.totalElements;
@@ -73,7 +76,7 @@ export class ProblemListComponent implements OnInit, OnDestroy {
       });
 
     // Cosmetic: without the vocabulary the tag filter simply has no options to offer.
-    this.api.getTags().subscribe({
+    this.api.getTags().pipe(markDirty(this.cdr)).subscribe({
       next: (tags) => (this.allTags = tags),
       error: () => undefined
     });
@@ -120,4 +123,9 @@ export class ProblemListComponent implements OnInit, OnDestroy {
       tags: this.selectedTags
     };
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackProblem(_index: number, p: any): any {
+    return p.slug;
+  }
+
 }

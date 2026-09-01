@@ -84,7 +84,7 @@
       Could not load your recent submissions.
     </p>
     <ul *ngIf="activityTracked && activity.length > 0" class="activity-list">
-      <li *ngFor="let row of activity">
+      <li *ngFor="let row of activity; trackBy: trackActivity">
         <span class="activity-when">{{ row.createdAt | date:'MMM d, HH:mm' }}</span>
         <a class="activity-problem" [routerLink]="['/problems', row.problemSlug]">{{ row.problemSlug }}</a>
         <!-- No verdict yet means the judge still has it, so show where it got to instead. -->

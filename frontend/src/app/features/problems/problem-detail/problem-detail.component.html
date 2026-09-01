@@ -26,7 +26,7 @@
 
     <div *ngIf="problem.samples.length" class="samples">
       <h3>Samples</h3>
-      <div class="sample" *ngFor="let s of problem.samples">
+      <div class="sample" *ngFor="let s of problem.samples; trackBy: trackSample">
         <div class="sample-col">
           <div class="sample-label">Input</div>
           <pre>{{ s.input }}</pre>

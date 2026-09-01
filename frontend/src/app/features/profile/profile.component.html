@@ -103,7 +103,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let h of historyDesc">
+        <tr *ngFor="let h of historyDesc; trackBy: trackHistory">
           <td>{{ contestLabel(h.contestId) }}</td>
           <td class="col-num num">{{ h.before }}</td>
           <td class="col-num num">{{ h.after }}</td>

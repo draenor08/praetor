@@ -1,8 +1,9 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { ManagedProblem } from '../../../core/models/problem.model';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 /**
  * Setter workspace: every problem with the actions its current state allows.
@@ -16,9 +17,11 @@ import { ManagedProblem } from '../../../core/models/problem.model';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './problem-manage.component.html',
-  styleUrls: ['./problem-manage.component.scss']
+  styleUrls: ['./problem-manage.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProblemManageComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
 
   problems: ManagedProblem[] = [];
@@ -38,7 +41,7 @@ export class ProblemManageComponent implements OnInit {
 
   private load(): void {
     this.loading = true;
-    this.api.getManagedProblems().subscribe({
+    this.api.getManagedProblems().pipe(markDirty(this.cdr)).subscribe({
       next: (list) => {
         this.problems = list;
         this.loading = false;
@@ -62,7 +65,7 @@ export class ProblemManageComponent implements OnInit {
 
   confirmDelete(slug: string): void {
     this.busySlug = slug;
-    this.api.deleteProblem(slug).subscribe({
+    this.api.deleteProblem(slug).pipe(markDirty(this.cdr)).subscribe({
       next: () => {
         this.pendingDelete = null;
         this.busySlug = null;
@@ -90,7 +93,7 @@ export class ProblemManageComponent implements OnInit {
     this.pendingRestore = null;
     this.busySlug = problem.slug;
     this.error = '';
-    this.api.setProblemArchived(problem.slug, !problem.archived).subscribe({
+    this.api.setProblemArchived(problem.slug, !problem.archived).pipe(markDirty(this.cdr)).subscribe({
       next: () => {
         this.busySlug = null;
         this.notice = problem.archived
@@ -108,4 +111,9 @@ export class ProblemManageComponent implements OnInit {
   private messageFrom(err: any, fallback: string): string {
     return err?.error?.error ?? err?.error?.message ?? fallback;
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackManaged(_index: number, p: any): any {
+    return p.slug;
+  }
+
 }

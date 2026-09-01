@@ -1,9 +1,10 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { TestCaseRow } from '../../../core/models/problem.model';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 /** Delimiters for the paste box. Documented in the template — no hidden syntax. */
 const CASE_SEPARATOR = /^==+$/m;
@@ -31,9 +32,11 @@ const IO_SEPARATOR = /^--+$/m;
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './test-case-editor.component.html',
-  styleUrls: ['./test-case-editor.component.scss']
+  styleUrls: ['./test-case-editor.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TestCaseEditorComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
 
@@ -56,7 +59,7 @@ export class TestCaseEditorComponent implements OnInit {
   ngOnInit(): void {
     this.slug = this.route.snapshot.paramMap.get('slug')!;
 
-    this.api.getTestCases(this.slug).subscribe({
+    this.api.getTestCases(this.slug).pipe(markDirty(this.cdr)).subscribe({
       next: (cases) => {
         this.rows = cases.map((c) => ({ ...c }));
         this.loading = false;
@@ -67,7 +70,7 @@ export class TestCaseEditorComponent implements OnInit {
       }
     });
 
-    this.api.getProblemUsage(this.slug).subscribe({
+    this.api.getProblemUsage(this.slug).pipe(markDirty(this.cdr)).subscribe({
       next: (usage) => (this.frozen = usage.inLiveContest),
       error: () => (this.frozen = false)
     });
@@ -197,7 +200,7 @@ export class TestCaseEditorComponent implements OnInit {
     this.saving = true;
     this.saveError = '';
 
-    this.api.saveTestCases(this.slug, { mode, cases }).subscribe({
+    this.api.saveTestCases(this.slug, { mode, cases }).pipe(markDirty(this.cdr)).subscribe({
       next: (saved) => {
         this.rows = saved.map((c) => ({ ...c }));
         this.saving = false;
@@ -211,4 +214,9 @@ export class TestCaseEditorComponent implements OnInit {
       }
     });
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackCaseRow(index: number, row: any): any {
+    return index;
+  }
+
 }

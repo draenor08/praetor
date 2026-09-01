@@ -1,10 +1,11 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { ContestSummary, EligibleProblem, Proposal } from '../../../core/models/contest.model';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 /**
  * A setter's side of contest authoring: which contests are asking for problems, which of their
@@ -19,9 +20,11 @@ import { ContestSummary, EligibleProblem, Proposal } from '../../../core/models/
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './contest-calls.component.html',
-  styleUrls: ['./contest-calls.component.scss']
+  styleUrls: ['./contest-calls.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ContestCallsComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
 
   openContests: ContestSummary[] = [];
@@ -61,7 +64,7 @@ export class ContestCallsComponent implements OnInit {
     this.busy = true;
     this.error = '';
     this.notice = '';
-    this.api.proposeProblem(this.offeringTo, this.chosenProblemId, this.note.trim() || null).subscribe({
+    this.api.proposeProblem(this.offeringTo, this.chosenProblemId, this.note.trim() || null).pipe(markDirty(this.cdr)).subscribe({
       next: (p) => {
         this.busy = false;
         this.offeringTo = null;
@@ -92,7 +95,7 @@ export class ContestCallsComponent implements OnInit {
       contests: this.api.getContests(),
       pool: this.api.getEligibleProblems(),
       mine: this.api.getMyProposals()
-    }).subscribe({
+    }).pipe(markDirty(this.cdr)).subscribe({
       next: ({ contests, pool, mine }) => {
         this.openContests = contests.filter((c) => c.callsOpen);
         this.pool = pool;
@@ -105,4 +108,14 @@ export class ContestCallsComponent implements OnInit {
       }
     });
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackCall(_index: number, c: any): any {
+    return c.id;
+  }
+
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackMine(_index: number, p: any): any {
+    return p.id;
+  }
+
 }

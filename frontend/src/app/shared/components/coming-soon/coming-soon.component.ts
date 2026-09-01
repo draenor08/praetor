@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
 /**
@@ -27,7 +27,8 @@ import { ActivatedRoute } from '@angular/router';
       color: var(--text-color);
       margin-bottom: 0.5rem;
     }
-  `]
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ComingSoonComponent {
   private route = inject(ActivatedRoute);

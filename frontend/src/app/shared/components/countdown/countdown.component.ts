@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   ContestPhase,
@@ -46,7 +46,8 @@ import {
     .countdown-soon b {
       color: var(--primary-color);
     }
-  `]
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CountdownComponent implements OnChanges, OnDestroy {
   @Input({ required: true }) startsAt!: string;
@@ -61,6 +62,7 @@ export class CountdownComponent implements OnChanges, OnDestroy {
   remaining = '';
   soon = false;
 
+  private cdr = inject(ChangeDetectorRef);
   private skewMs = 0;
   private timer?: ReturnType<typeof setInterval>;
 
@@ -70,7 +72,12 @@ export class CountdownComponent implements OnChanges, OnDestroy {
     this.phase = phaseOf(this.startsAt, this.endsAt, serverNowMs(this.skewMs));
     this.tick();
     if (!this.timer) {
-      this.timer = setInterval(() => this.tick(), 1000);
+      // The tick mutates state from a timer, which is not an input, an event or a signal — under
+      // OnPush the clock would render once and then sit still.
+      this.timer = setInterval(() => {
+        this.tick();
+        this.cdr.markForCheck();
+      }, 1000);
     }
   }
 

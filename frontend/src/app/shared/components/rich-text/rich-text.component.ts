@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, ViewEncapsulation, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, ViewEncapsulation, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { renderRichText } from '../../markdown/markdown';
@@ -102,7 +102,8 @@ function loadKatex(): Promise<any> {
       overflow-y: hidden;
       padding: 0.2rem 0;
     }
-  `]
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RichTextComponent implements OnChanges {
   private sanitizer = inject(DomSanitizer);
@@ -111,12 +112,19 @@ export class RichTextComponent implements OnChanges {
 
   html: SafeHtml = '';
 
+  private cdr = inject(ChangeDetectorRef);
+
   ngOnChanges(): void {
     // Render immediately with maths as literal TeX, so text appears without waiting on a chunk...
     this.render();
     if (!katexLib && this.hasMath()) {
       // ...then again, with real formulas, once KaTeX arrives.
-      loadKatex().then(() => this.render()).catch(() => undefined);
+      // Resolves outside anything Angular tracks, so an OnPush view would keep the pre-maths
+      // render forever without being told to look again.
+      loadKatex().then(() => {
+        this.render();
+        this.cdr.markForCheck();
+      }).catch(() => undefined);
     }
   }
 

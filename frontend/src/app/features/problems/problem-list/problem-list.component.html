@@ -38,7 +38,7 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let p of problems">
+    <tr *ngFor="let p of problems; trackBy: trackProblem">
       <td><a [routerLink]="['/problems', p.slug]">{{ p.title }}</a></td>
       <td class="col-tags">
         <span class="tag" *ngFor="let tag of p.tags">{{ tag }}</span>

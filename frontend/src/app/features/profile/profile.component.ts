@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
 import { UserRating } from '../../core/models/rating.model';
 import { ProfileSolveStats } from '../../core/models/profile.model';
+import { markDirty } from '../../core/rx/mark-dirty';
 
 interface ChartPoint {
   x: number;
@@ -23,9 +24,11 @@ const PAD_Y = 18;
   standalone: true,
   imports: [CommonModule],
   templateUrl: './profile.component.html',
-  styleUrl: './profile.component.scss'
+  styleUrl: './profile.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProfileComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private authService = inject(AuthService);
   private api = inject(ApiService);
 
@@ -42,7 +45,7 @@ export class ProfileComponent implements OnInit {
   readonly chartHeight = CHART_HEIGHT;
 
   ngOnInit(): void {
-    this.authService.getMe().subscribe({
+    this.authService.getMe().pipe(markDirty(this.cdr)).subscribe({
       next: (user) => {
         this.user = user;
         this.loading = false;
@@ -56,7 +59,7 @@ export class ProfileComponent implements OnInit {
     });
 
     // Cosmetic: a missing contest list just means history shows "Contest #id".
-    this.api.getContests().subscribe({
+    this.api.getContests().pipe(markDirty(this.cdr)).subscribe({
       next: (contests) => contests.forEach((c) => this.contestTitles.set(c.id, c.title)),
       error: () => undefined
     });
@@ -68,7 +71,7 @@ export class ProfileComponent implements OnInit {
     }
     // Rating lives on its own endpoint because it carries the live rank and full history;
     // /api/users/me only knows the current value.
-    this.api.getUserRating(handle).subscribe({
+    this.api.getUserRating(handle).pipe(markDirty(this.cdr)).subscribe({
       next: (rating) => (this.rating = rating),
       error: () => undefined
     });
@@ -78,7 +81,7 @@ export class ProfileComponent implements OnInit {
     if (!handle) {
       return;
     }
-    this.api.getUserSolveStats(handle).subscribe({
+    this.api.getUserSolveStats(handle).pipe(markDirty(this.cdr)).subscribe({
       next: (s) => (this.profileStats = s),
       error: () => undefined
     });
@@ -155,4 +158,9 @@ export class ProfileComponent implements OnInit {
   get hasChart(): boolean {
     return this.chartPoints.length >= 2;
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackHistory(index: number, h: any): any {
+    return h.contestId;
+  }
+
 }

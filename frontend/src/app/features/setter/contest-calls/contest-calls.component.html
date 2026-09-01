@@ -17,7 +17,7 @@
     No contest is accepting problems right now.
   </div>
 
-  <div *ngFor="let c of openContests" class="call-card">
+  <div *ngFor="let c of openContests; trackBy: trackCall" class="call-card">
     <div class="call-head">
       <span class="call-title">{{ c.title }}</span>
       <span class="muted when">{{ c.startsAt | date:'MMM d, HH:mm' }}</span>
@@ -67,7 +67,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let p of mine">
+      <tr *ngFor="let p of mine; trackBy: trackMine">
         <td>
           {{ p.title }}
           <span class="slug">{{ p.slug }}</span>

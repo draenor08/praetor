@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -6,6 +6,7 @@ import { ApiService } from '../../core/services/api.service';
 import { UserRating } from '../../core/models/rating.model';
 import { ProfileSolveStats } from '../../core/models/profile.model';
 import { SubmissionSummary } from '../../core/models/submission.model';
+import { markDirty } from '../../core/rx/mark-dirty';
 
 /** How many recent submissions the activity feed shows before deferring to /submissions. */
 const RECENT_COUNT = 5;
@@ -28,9 +29,11 @@ const RECENT_COUNT = 5;
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './landing.component.html',
-  styleUrls: ['./landing.component.scss']
+  styleUrls: ['./landing.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LandingComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private authService = inject(AuthService);
   private api = inject(ApiService);
 
@@ -74,7 +77,7 @@ export class LandingComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.authService.getMe().subscribe({
+    this.authService.getMe().pipe(markDirty(this.cdr)).subscribe({
       next: (user) => {
         this.user = user;
         this.loading = false;
@@ -98,7 +101,7 @@ export class LandingComponent implements OnInit {
     }
     // Rating lives on its own endpoint because it carries the live rank and the change history;
     // /api/users/me only knows the current value. A failure leaves the card reading "—".
-    this.api.getUserRating(handle).subscribe({
+    this.api.getUserRating(handle).pipe(markDirty(this.cdr)).subscribe({
       next: (rating) => (this.rating = rating),
       error: () => undefined
     });
@@ -112,7 +115,7 @@ export class LandingComponent implements OnInit {
     if (!handle) {
       return;
     }
-    this.api.getUserSolveStats(handle).subscribe({
+    this.api.getUserSolveStats(handle).pipe(markDirty(this.cdr)).subscribe({
       next: (stats) => (this.solveStats = stats),
       error: () => (this.solveStats = null)
     });
@@ -120,7 +123,7 @@ export class LandingComponent implements OnInit {
 
   /** The last few submissions (FR-10). The full list lives at /submissions. */
   private loadRecentActivity(): void {
-    this.api.getSubmissions({ page: 0, size: RECENT_COUNT }).subscribe({
+    this.api.getSubmissions({ page: 0, size: RECENT_COUNT }).pipe(markDirty(this.cdr)).subscribe({
       next: (page) => {
         this.activity = page.content;
         this.activityLoaded = true;
@@ -150,4 +153,9 @@ export class LandingComponent implements OnInit {
     const latest = history[history.length - 1];
     return latest.after - latest.before;
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackActivity(index: number, row: any): any {
+    return index;
+  }
+
 }

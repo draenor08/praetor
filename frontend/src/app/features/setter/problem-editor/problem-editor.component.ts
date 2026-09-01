@@ -1,10 +1,11 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { ProblemInput } from '../../../core/models/problem.model';
 import { RichTextComponent } from '../../../shared/components/rich-text/rich-text.component';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -31,9 +32,11 @@ const MAX_TAGS = 8;
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, RichTextComponent],
   templateUrl: './problem-editor.component.html',
-  styleUrls: ['./problem-editor.component.scss']
+  styleUrls: ['./problem-editor.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProblemEditorComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -99,7 +102,7 @@ export class ProblemEditorComponent implements OnInit {
     this.originalSlug = slug;
     this.loading = true;
 
-    this.api.getManagedProblem(slug).subscribe({
+    this.api.getManagedProblem(slug).pipe(markDirty(this.cdr)).subscribe({
       next: (problem) => {
         this.form = {
           slug: problem.slug,
@@ -125,7 +128,7 @@ export class ProblemEditorComponent implements OnInit {
     });
 
     // Separate call: it answers "may these fields be edited right now", not "what are they".
-    this.api.getProblemUsage(slug).subscribe({
+    this.api.getProblemUsage(slug).pipe(markDirty(this.cdr)).subscribe({
       next: (usage) => (this.judgingLocked = usage.inLiveContest),
       error: () => (this.judgingLocked = false)
     });
@@ -216,7 +219,7 @@ export class ProblemEditorComponent implements OnInit {
       ? this.api.updateProblem(this.originalSlug!, body)
       : this.api.createProblem(body);
 
-    request.subscribe({
+    request.pipe(markDirty(this.cdr)).subscribe({
       next: (saved) => {
         this.saving = false;
         // A new problem is unjudgeable until it has test cases, so go straight there.

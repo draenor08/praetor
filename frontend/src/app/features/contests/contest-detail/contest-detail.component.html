@@ -32,7 +32,7 @@
   <!-- Open: every slot links to its statement. -->
   <table *ngIf="c.problemsVisible" class="problem-table">
     <tbody>
-      <tr *ngFor="let p of c.problems">
+      <tr *ngFor="let p of c.problems; trackBy: trackContestProblem">
         <td class="col-label"><span class="tag prob">{{ p.label }}</span></td>
         <td><a [routerLink]="['/problems', p.slug]">{{ p.title }}</a></td>
       </tr>
@@ -46,7 +46,7 @@
   <div *ngIf="!c.problemsVisible" class="locked-panel">
     <p class="locked-reason">{{ lockReason }}</p>
     <p class="locked-labels">
-      <span class="tag prob" *ngFor="let p of c.problems">{{ p.label }}</span>
+      <span class="tag prob" *ngFor="let p of c.problems; trackBy: trackContestProblem">{{ p.label }}</span>
     </p>
     <button *ngIf="canRegister" class="btn-primary" (click)="register()" [disabled]="registering">
       {{ registering ? 'Registering…' : 'Register' }}

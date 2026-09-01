@@ -1,10 +1,11 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { TokenService } from '../../../core/services/token.service';
 import { ContestDetail, Proposal } from '../../../core/models/contest.model';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 /**
  * The admin's review queue for one contest: what setters have offered, and the decision.
@@ -18,9 +19,11 @@ import { ContestDetail, Proposal } from '../../../core/models/contest.model';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './contest-proposals.component.html',
-  styleUrls: ['./contest-proposals.component.scss']
+  styleUrls: ['./contest-proposals.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ContestProposalsComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
   private tokenService = inject(TokenService);
   private route = inject(ActivatedRoute);
@@ -90,7 +93,7 @@ export class ContestProposalsComponent implements OnInit {
       return;
     }
     const next = !this.contest.callsOpen;
-    this.api.setContestCalls(this.contestId, next).subscribe({
+    this.api.setContestCalls(this.contestId, next).pipe(markDirty(this.cdr)).subscribe({
       next: (c) => {
         this.contest = c;
         this.notice = next ? 'Setters can now propose problems.' : 'Proposals are closed.';
@@ -106,7 +109,7 @@ export class ContestProposalsComponent implements OnInit {
     this.busyId = p.id;
     this.error = '';
     this.notice = '';
-    call.subscribe({
+    call.pipe(markDirty(this.cdr)).subscribe({
       next: () => {
         this.busyId = null;
         this.notice = done;
@@ -120,12 +123,12 @@ export class ContestProposalsComponent implements OnInit {
   }
 
   private load(): void {
-    this.api.getContest(this.contestId).subscribe({
+    this.api.getContest(this.contestId).pipe(markDirty(this.cdr)).subscribe({
       next: (c) => (this.contest = c),
       error: () => (this.error = 'Could not load this contest.')
     });
 
-    this.api.getProposals(this.contestId).subscribe({
+    this.api.getProposals(this.contestId).pipe(markDirty(this.cdr)).subscribe({
       next: (list) => {
         this.proposals = list;
         this.loading = false;
@@ -141,4 +144,14 @@ export class ContestProposalsComponent implements OnInit {
     const e = err as { error?: { error?: string; message?: string } };
     return e?.error?.error || e?.error?.message || 'Something went wrong.';
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackProposal(_index: number, p: any): any {
+    return p.id;
+  }
+
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackPending(index: number, p: any): any {
+    return p.id;
+  }
+
 }

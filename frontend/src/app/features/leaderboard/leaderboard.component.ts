@@ -1,9 +1,10 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { TokenService } from '../../core/services/token.service';
 import { LeaderboardEntry } from '../../core/models/rating.model';
+import { markDirty } from '../../core/rx/mark-dirty';
 
 const PAGE_SIZE = 20;
 
@@ -18,9 +19,11 @@ const PAGE_SIZE = 20;
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './leaderboard.component.html',
-  styleUrls: ['./leaderboard.component.scss']
+  styleUrls: ['./leaderboard.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LeaderboardComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
   private tokenService = inject(TokenService);
 
@@ -41,7 +44,7 @@ export class LeaderboardComponent implements OnInit {
   load(page: number): void {
     this.loading = true;
     this.error = '';
-    this.api.getLeaderboard(page, PAGE_SIZE).subscribe({
+    this.api.getLeaderboard(page, PAGE_SIZE).pipe(markDirty(this.cdr)).subscribe({
       next: (board) => {
         this.entries = board.content;
         this.page = board.page;
@@ -71,4 +74,9 @@ export class LeaderboardComponent implements OnInit {
   get hasNext(): boolean {
     return this.lastShown < this.total;
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackEntry(_index: number, e: any): any {
+    return e.handle;
+  }
+
 }

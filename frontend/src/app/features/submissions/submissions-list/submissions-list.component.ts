@@ -1,10 +1,11 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { TokenService } from '../../../core/services/token.service';
 import { SubmissionSummary } from '../../../core/models/submission.model';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 const PAGE_SIZE = 20;
 
@@ -23,9 +24,11 @@ const PAGE_SIZE = 20;
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './submissions-list.component.html',
-  styleUrls: ['./submissions-list.component.scss']
+  styleUrls: ['./submissions-list.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SubmissionsListComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
   private tokenService = inject(TokenService);
 
@@ -57,7 +60,7 @@ export class SubmissionsListComponent implements OnInit {
     this.loading = true;
     this.error = '';
     this.api.getSubmissions({ user: this.appliedHandle || undefined, page, size: PAGE_SIZE })
-      .subscribe({
+      .pipe(markDirty(this.cdr)).subscribe({
         next: (result) => {
           this.rows = result.content;
           this.page = result.page;
@@ -107,4 +110,9 @@ export class SubmissionsListComponent implements OnInit {
   get hasNext(): boolean {
     return this.lastShown < this.total;
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackRow(_index: number, s: any): any {
+    return s.id;
+  }
+
 }

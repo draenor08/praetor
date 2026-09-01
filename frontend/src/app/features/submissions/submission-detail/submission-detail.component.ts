@@ -1,4 +1,4 @@
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -7,15 +7,18 @@ import { WsService } from '../../../core/services/ws.service';
 import { TokenService } from '../../../core/services/token.service';
 import { SubmissionResponse } from '../../../core/models/submission.model';
 import { ToastService } from '../../../shared/toast/toast.service';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 @Component({
   selector: 'app-submission-detail',
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './submission-detail.component.html',
-  styleUrls: ['./submission-detail.component.scss']
+  styleUrls: ['./submission-detail.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SubmissionDetailComponent implements OnInit, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
   private ws = inject(WsService);
   private tokenService = inject(TokenService);
@@ -40,7 +43,7 @@ export class SubmissionDetailComponent implements OnInit, OnDestroy {
   }
 
   private load(): void {
-    this.api.getSubmission(this.id).subscribe({
+    this.api.getSubmission(this.id).pipe(markDirty(this.cdr)).subscribe({
       next: (s) => {
         this.submission = s;
         this.loading = false;
@@ -59,12 +62,12 @@ export class SubmissionDetailComponent implements OnInit, OnDestroy {
     }
     this.rejudging = true;
     this.liveSub?.unsubscribe();
-    this.api.rejudge(this.id).subscribe({
+    this.api.rejudge(this.id).pipe(markDirty(this.cdr)).subscribe({
       next: (created) => {
         if (this.submission) {
           this.submission = { ...this.submission, status: created.status, verdict: null, results: [] };
         }
-        this.liveSub = this.ws.submission$(this.id).subscribe((ev) => {
+        this.liveSub = this.ws.submission$(this.id).pipe(markDirty(this.cdr)).subscribe((ev) => {
           if (this.submission) {
             this.submission = { ...this.submission, status: ev.status, verdict: ev.verdict };
           }
@@ -84,4 +87,9 @@ export class SubmissionDetailComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.liveSub?.unsubscribe();
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackResult(index: number, r: any): any {
+    return r.testCaseId ?? index;
+  }
+
 }
