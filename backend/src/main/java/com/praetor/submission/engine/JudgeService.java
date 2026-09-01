@@ -126,7 +126,7 @@ public class JudgeService {
         RunLimits limits = buildLimits(problem, language);
         String runId = id + "-" + UUID.randomUUID();
         try {
-            CompileResult cr = sandbox.compile(runId, language, sub.getSourceCode());
+            CompileResult cr = sandbox.compile(runId, language, sub.getSourceCode(), limits);
             if (!cr.success()) {
                 markDone(id, Verdict.CE, null, null, cr.log(), List.of());
                 push(owner, id, SubmissionStatus.DONE, Verdict.CE);

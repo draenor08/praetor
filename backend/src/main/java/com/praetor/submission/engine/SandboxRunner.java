@@ -13,7 +13,12 @@ import com.praetor.submission.entity.JudgeTestCase;
  */
 public interface SandboxRunner {
 
-    CompileResult compile(String runId, Language language, String sourceCode);
+    /**
+     * Prepares the run directory, writes the source, and compiles it. {@code limits} is taken here
+     * (not only in {@link #run}) because an implementation may stand up one sandbox container for
+     * the whole submission at this point, and the container's caps have to be set at creation.
+     */
+    CompileResult compile(String runId, Language language, String sourceCode, RunLimits limits);
 
     RunResult run(String runId, Language language, JudgeTestCase testCase, RunLimits limits);
 
