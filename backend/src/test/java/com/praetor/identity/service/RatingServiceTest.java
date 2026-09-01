@@ -25,7 +25,6 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -247,17 +246,11 @@ class RatingServiceTest {
         when(standingsService.snapshot(contestId, true))
                 .thenReturn(standings);
 
-        when(userRepository.findByUsername("alice"))
-                .thenReturn(Optional.of(alice));
+        when(userRepository.findByUsernameIn(List.of("alice", "bob")))
+                .thenReturn(List.of(alice, bob));
 
-        when(userRepository.findByUsername("bob"))
-                .thenReturn(Optional.of(bob));
-
-        when(ratingRepository.findById(1L))
-                .thenReturn(Optional.of(aliceRating));
-
-        when(ratingRepository.findById(2L))
-                .thenReturn(Optional.of(bobRating));
+        when(ratingRepository.findAllById(List.of(1L, 2L)))
+                .thenReturn(List.of(aliceRating, bobRating));
 
         service.applyContestResults(contestId);
 
@@ -267,17 +260,24 @@ class RatingServiceTest {
         assertThat(bobRating.getValue())
                 .isEqualTo(1488);
 
-        verify(ratingRepository, times(2))
-                .save(any(Rating.class));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Rating>> ratingCaptor =
+                ArgumentCaptor.forClass(List.class);
 
-        ArgumentCaptor<RatingHistory> historyCaptor =
-                ArgumentCaptor.forClass(RatingHistory.class);
+        verify(ratingRepository)
+                .saveAll(ratingCaptor.capture());
 
-        verify(ratingHistoryRepository, times(2))
-                .save(historyCaptor.capture());
+        assertThat(ratingCaptor.getValue()).hasSize(2);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<RatingHistory>> historyCaptor =
+                ArgumentCaptor.forClass(List.class);
+
+        verify(ratingHistoryRepository)
+                .saveAll(historyCaptor.capture());
 
         List<RatingHistory> histories =
-                historyCaptor.getAllValues();
+                historyCaptor.getValue();
 
         assertThat(histories)
                 .extracting(RatingHistory::getContestId)
@@ -306,10 +306,83 @@ class RatingServiceTest {
                 .snapshot(any(), any(Boolean.class));
 
         verify(ratingRepository, never())
-                .save(any(Rating.class));
+                .saveAll(any());
 
         verify(ratingHistoryRepository, never())
-                .save(any(RatingHistory.class));
+                .saveAll(any());
+    }
+
+    /**
+     * The rating apply reads and writes the whole field in a fixed number of statements. Guards the
+     * shape, not the arithmetic: the loop this replaced issued a findByUsername and a findById per
+     * participant and then saved each row on its own — four statements per person, so a 50-strong
+     * contest cost 200 round-trips.
+     */
+    @Test
+    void applyContestResultsReadsAndWritesInBatches() {
+
+        long contestId = 11L;
+
+        when(ratingHistoryRepository.existsByContestId(contestId))
+                .thenReturn(false);
+
+        when(standingsService.snapshot(contestId, true))
+                .thenReturn(new StandingsResponse(
+                        contestId,
+                        false,
+                        "2026-08-11T00:00:00Z",
+                        List.of(
+                                new StandingsRow(1, "alice", 1, 20, List.of()),
+                                new StandingsRow(2, "bob", 0, 0, List.of()))));
+
+        when(userRepository.findByUsernameIn(List.of("alice", "bob")))
+                .thenReturn(List.of(user(1L, "alice"), user(2L, "bob")));
+
+        when(ratingRepository.findAllById(List.of(1L, 2L)))
+                .thenReturn(List.of(new Rating(1L, 1500), new Rating(2L, 1500)));
+
+        service.applyContestResults(contestId);
+
+        verify(userRepository).findByUsernameIn(List.of("alice", "bob"));
+        verify(ratingRepository).findAllById(List.of(1L, 2L));
+        verify(ratingRepository).saveAll(any());
+        verify(ratingHistoryRepository).saveAll(any());
+
+        verify(userRepository, never()).findByUsername(any());
+        verify(ratingRepository, never()).findById(any());
+        verify(ratingRepository, never()).save(any(Rating.class));
+        verify(ratingHistoryRepository, never()).save(any(RatingHistory.class));
+    }
+
+    /** A participant on the board with no user row is a corrupt read, not a rating of zero people. */
+    @Test
+    void applyContestResultsRefusesAnUnresolvableHandle() {
+
+        long contestId = 12L;
+
+        when(ratingHistoryRepository.existsByContestId(contestId))
+                .thenReturn(false);
+
+        when(standingsService.snapshot(contestId, true))
+                .thenReturn(new StandingsResponse(
+                        contestId,
+                        false,
+                        "2026-08-11T00:00:00Z",
+                        List.of(
+                                new StandingsRow(1, "alice", 1, 20, List.of()),
+                                new StandingsRow(2, "ghost", 0, 0, List.of()))));
+
+        when(userRepository.findByUsernameIn(List.of("alice", "ghost")))
+                .thenReturn(List.of(user(1L, "alice")));
+
+        Throwable t = catchThrowable(() -> service.applyContestResults(contestId));
+
+        assertThat(t).isInstanceOf(ResponseStatusException.class);
+        assertThat(((ResponseStatusException) t).getStatusCode())
+                .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+
+        verify(ratingRepository, never()).saveAll(any());
+        verify(ratingHistoryRepository, never()).saveAll(any());
     }
 
     private User user(Long id, String username) {

@@ -10,11 +10,11 @@
         <th>Who</th>
         <th class="col-num">Solved</th>
         <th class="col-num">Penalty</th>
-        <th class="col-prob" *ngFor="let p of problems">{{ p.label }}</th>
+        <th class="col-prob" *ngFor="let p of problems; trackBy: trackProblem">{{ p.label }}</th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let row of st.rows" [class.me-row]="row.handle === myHandle">
+      <tr *ngFor="let row of st.rows; trackBy: trackRow" [class.me-row]="row.handle === myHandle">
         <td class="col-rank num">{{ row.rank }}</td>
         <td>
           <span class="handle">{{ row.handle }}</span>
@@ -22,7 +22,7 @@
         </td>
         <td class="col-num num">{{ row.solved }}</td>
         <td class="col-num num muted">{{ row.penalty }}</td>
-        <td class="col-prob" *ngFor="let cell of row.problems">
+        <td class="col-prob" *ngFor="let cell of row.problems; trackBy: trackCell">
           <span class="st-cell" [ngClass]="cellClass(cell)"
                 [attr.title]="cell.firstSolve ? 'First to solve this problem' : null">
             {{ cellMain(cell) }}
