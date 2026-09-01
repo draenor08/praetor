@@ -61,3 +61,5 @@ praetor:
     work-dir:     /judge
     volume-name:  praetor_work
     oom-inspect:  false
+    # one container per submission (docker exec per case) rather than one per case
+    reuse-container: ${SANDBOX_REUSE_CONTAINER:true}
