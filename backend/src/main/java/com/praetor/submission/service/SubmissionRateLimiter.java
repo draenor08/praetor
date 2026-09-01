@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Per-user cooldown between accepted submissions (FR-17).
+ * Per-user cooldown between accepted submissions (FR-26).
  *
  * <p>Enforced here rather than in a servlet filter because a filter runs <em>before</em> the
  * handler and therefore cannot tell an accepted submission from a rejected one — the previous
