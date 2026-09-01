@@ -20,6 +20,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class RatingService {
@@ -136,23 +138,53 @@ public class RatingService {
         StandingsResponse standings =
                 standingsService.snapshot(contestId, true);
 
+        List<StandingsRow> rows = standings.rows();
+
+        if (rows.isEmpty()) {
+            return;
+        }
+
+        // Two statements for the whole field, not two per participant. The board hands us every
+        // handle up front, so there is nothing to discover row by row.
+        List<String> handles = rows.stream()
+                .map(StandingsRow::handle)
+                .toList();
+
+        Map<String, User> usersByHandle = userRepository
+                .findByUsernameIn(handles)
+                .stream()
+                .collect(Collectors.toMap(
+                        User::getUsername,
+                        u -> u));
+
+        if (usersByHandle.size() != handles.size()) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "standings user not found");
+        }
+
+        List<Long> userIds = handles.stream()
+                .map(handle -> usersByHandle.get(handle).getId())
+                .toList();
+
+        Map<Long, Rating> ratingsByUserId = ratingRepository
+                .findAllById(userIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        Rating::getUserId,
+                        r -> r));
+
         List<ParticipantRating> participants =
                 new ArrayList<>();
 
-        for (StandingsRow row : standings.rows()) {
+        for (StandingsRow row : rows) {
 
-            User user = userRepository
-                    .findByUsername(row.handle())
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.INTERNAL_SERVER_ERROR,
-                            "standings user not found"));
+            User user = usersByHandle.get(row.handle());
 
-            Rating rating = ratingRepository
-                    .findById(user.getId())
-                    .orElseGet(() ->
-                            new Rating(
-                                    user.getId(),
-                                    DEFAULT_RATING));
+            // A user who has never been rated has no row yet; it is created here and saved below.
+            Rating rating = ratingsByUserId.computeIfAbsent(
+                    user.getId(),
+                    id -> new Rating(id, DEFAULT_RATING));
 
             participants.add(
                     new ParticipantRating(
@@ -192,6 +224,9 @@ public class RatingService {
                             after));
         }
 
+        List<Rating> toSave = new ArrayList<>();
+        List<RatingHistory> history = new ArrayList<>();
+
         for (RatingChange change : changes) {
 
             ParticipantRating participant =
@@ -200,16 +235,19 @@ public class RatingService {
             participant.rating()
                     .setValue(change.after());
 
-            ratingRepository.save(
-                    participant.rating());
+            toSave.add(participant.rating());
 
-            ratingHistoryRepository.save(
+            history.add(
                     new RatingHistory(
                             participant.user().getId(),
                             contestId,
                             participant.before(),
                             change.after()));
         }
+
+        // One flush each, rather than two writes per participant.
+        ratingRepository.saveAll(toSave);
+        ratingHistoryRepository.saveAll(history);
     }
 
     private RatingHistoryResponse toHistoryResponse(
