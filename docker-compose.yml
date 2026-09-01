@@ -34,6 +34,9 @@ services:
       SANDBOX_CPU_SECONDS: ${SANDBOX_CPU_SECONDS}
       SANDBOX_MEM_MB: ${SANDBOX_MEM_MB}
       SANDBOX_PIDS_MAX: ${SANDBOX_PIDS_MAX}
+      # One sandbox container per submission (fast) vs one per test case. Default on;
+      # set to false to fall back to the older per-test-case path without a rebuild.
+      SANDBOX_REUSE_CONTAINER: ${SANDBOX_REUSE_CONTAINER:-true}
       JUDGE_WORKERS: ${JUDGE_WORKERS}
       # :-10 so a .env copied before this knob existed still boots — an empty value would
       # reach Spring as "" and fail to parse (the ${VAR:default} bridge only covers *unset*).
