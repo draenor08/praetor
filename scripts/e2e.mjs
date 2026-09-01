@@ -77,6 +77,20 @@ async function login(identifier) {
   return res.body.token;
 }
 
+/**
+ * Submits, waiting out the per-user cooldown if this user is still inside it. The script is
+ * documented as safe to re-run back to back, which means the very first submission of a run can
+ * legitimately land inside the window left by the previous run.
+ */
+async function submitting(token, body) {
+  let res = await call('POST', '/api/submissions', { token, body });
+  if (res.status === 429) {
+    await sleep(((res.body?.retryAfterSec ?? COOLDOWN_SEC) + 1) * 1000);
+    res = await call('POST', '/api/submissions', { token, body });
+  }
+  return res;
+}
+
 /** Polls a submission until the judge finishes with it. */
 async function waitForVerdict(id, token, timeoutMs = 60_000) {
   const deadline = Date.now() + timeoutMs;
@@ -173,13 +187,10 @@ async function main() {
     !publicJson.includes('-5 5'), publicView.body);
 
   section('Judging');
-  const submitted = await call('POST', '/api/submissions', {
-    token: alice,
-    body: {
-      problemSlug: slug,
-      language: 'CPP',
-      sourceCode: '#include <iostream>\nint main(){long long a,b;std::cin>>a>>b;std::cout<<a+b<<"\\n";}'
-    }
+  const submitted = await submitting(alice, {
+    problemSlug: slug,
+    language: 'CPP',
+    sourceCode: '#include <iostream>\nint main(){long long a,b;std::cin>>a>>b;std::cout<<a+b<<"\\n";}'
   });
   check('submit → 202 QUEUED',
     submitted.status === 202 && submitted.body?.status === 'QUEUED', submitted);
@@ -546,6 +557,182 @@ async function main() {
   const ownRows = await call('GET', `/api/submissions?contest=${liveContest.body?.id}`, { token: alice });
   check('the same submission IS visible in the owner\'s own history',
     ownRows.status === 200 && (ownRows.body?.content?.length ?? 0) >= 1, ownRows.body);
+
+  section('Standings board over HTTP (FR-18, FR-19, FR-21)');
+  // StandingsCalculator has a thorough unit suite, but nothing exercised
+  // controller -> service -> native query, and the freeze has leaked three times in this project's
+  // history. Reuses the live contest above, where alice already has one judged AC.
+  const board = await call('GET', `/api/contests/${liveContest.body?.id}/standings`, { token: alice });
+  check('standings → 200 with the board envelope',
+    board.status === 200 && typeof board.body?.frozen === 'boolean' &&
+    Array.isArray(board.body?.rows), board.body);
+  check('no freeze window configured → not frozen', board.body?.frozen === false, board.body?.frozen);
+
+  const aliceRow = (board.body?.rows ?? []).find((r) => r.handle === 'alice');
+  check('the registered participant is on the board', !!aliceRow, board.body?.rows);
+  check('her accepted problem counts as solved, with a cell per contest problem',
+    aliceRow?.solved === 1 && aliceRow?.problems?.length === 1, aliceRow);
+  check('the solved cell carries a minute mark and the first-solve flag (FR-19)',
+    aliceRow?.problems?.[0]?.solvedAtMin != null && aliceRow.problems[0].firstSolve === true,
+    aliceRow?.problems?.[0]);
+  check('a clean first solve carries no penalty beyond its time (FR-19)',
+    aliceRow?.penalty === aliceRow?.problems?.[0]?.solvedAtMin, {
+      penalty: aliceRow?.penalty, at: aliceRow?.problems?.[0]?.solvedAtMin });
+
+  const boardUnknown = await call('GET', '/api/contests/99999999/standings', { token: alice });
+  check('standings for a contest that does not exist → 404', boardUnknown.status === 404, boardUnknown);
+
+  // --- and now the same board under an ACTIVE freeze -----------------------------------------
+  const frSlug = `e2e-frozen-${RUN}`;
+  const frProblem = await call('POST', '/api/problems', {
+    token: setter,
+    body: {
+      slug: frSlug, title: 'E2E Frozen Sum', statement: 'Read two integers. Output their sum.',
+      difficulty: 800, timeLimitMs: 2000, memLimitKb: 262144, judgeMode: 'EXACT', draft: true
+    }
+  });
+  await call('POST', `/api/problems/${frSlug}/testcases/bulk`, {
+    token: setter,
+    body: { mode: 'REPLACE', cases: [{ ord: 1, kind: 'SAMPLE', input: '2 3\n', expected: '5\n', points: 0 }] }
+  });
+  // Started an hour ago, ends in an hour, freeze covers the last 90 minutes => frozen right now.
+  const frozenContest = await call('POST', '/api/contests', {
+    token: admin,
+    body: {
+      title: `E2E Frozen ${RUN}`,
+      startsAt: new Date(Date.now() - 3_600_000).toISOString(),
+      endsAt: new Date(Date.now() + 3_600_000).toISOString(),
+      freezeMin: 90,
+      scoring: 'ICPC',
+      problems: [{ problemId: frProblem.body?.id, label: 'A', ord: 1 }]
+    }
+  });
+  check('contest with an active freeze created → 201', frozenContest.status === 201, frozenContest);
+
+  // bob, not alice: this is the last submission of the run, and leaving alice's cooldown spent
+  // here is what stops the script being safe to run twice in a row.
+  const frJoined = await call('POST', `/api/contests/${frozenContest.body?.id}/register`, {
+    token: bob, body: { virtual: false }
+  });
+  check('bob registers for the frozen contest → 201', frJoined.status === 201, frJoined);
+
+  const frSub = await submitting(bob, {
+    problemSlug: frSlug, contestId: frozenContest.body?.id, language: 'CPP',
+    sourceCode: '#include <iostream>\nint main(){long long a,b;std::cin>>a>>b;std::cout<<a+b<<"\\n";}'
+  });
+  check('in-freeze submission accepted → 202', frSub.status === 202, frSub);
+  const frVerdict = await waitForVerdict(frSub.body?.id, bob);
+  check('it really was judged AC (so only the freeze can be hiding it)',
+    frVerdict?.verdict === 'AC', { verdict: frVerdict?.verdict });
+
+  const frozenView = await call('GET', `/api/contests/${frozenContest.body?.id}/standings`, { token: bob });
+  const frozenRow = (frozenView.body?.rows ?? []).find((r) => r.handle === 'bob');
+  check('the board reports the freeze window as active (FR-21)',
+    frozenView.body?.frozen === true, frozenView.body?.frozen);
+  check('a contestant does NOT see the post-freeze solve',
+    frozenRow?.solved === 0 && frozenRow?.problems?.[0]?.solvedAtMin == null, frozenRow);
+  check('the hidden activity is flagged so the cell renders "?" rather than looking untouched',
+    frozenRow?.problems?.[0]?.frozen === true, frozenRow?.problems?.[0]);
+
+  const privilegedView = await call('GET', `/api/contests/${frozenContest.body?.id}/standings`, { token: admin });
+  const privilegedRow = (privilegedView.body?.rows ?? []).find((r) => r.handle === 'bob');
+  check('ADMIN sees through the freeze to the real board',
+    privilegedRow?.solved === 1 && privilegedRow?.problems?.[0]?.solvedAtMin != null, privilegedRow);
+  check('the window is still reported as frozen to the privileged viewer too',
+    privilegedView.body?.frozen === true, privilegedView.body?.frozen);
+
+  section('Contest calls and problem proposals');
+  // The proposal workflow is a whole feature with no e2e coverage at all: nothing here had ever
+  // been called, so a broken query would have reached the demo.
+  const poolAsUser = await call('GET', '/api/contests/eligible-problems', { token: alice });
+  check('a contestant cannot browse the problem pool → 403', poolAsUser.status === 403, poolAsUser);
+
+  const pool = await call('GET', '/api/contests/eligible-problems', { token: setter });
+  check('staff can browse the eligible problem pool → 200',
+    pool.status === 200 && Array.isArray(pool.body), pool.body);
+
+  // A brand-new draft problem, so it is genuinely eligible (never public, never used).
+  const propSlug = `e2e-proposed-${RUN}`;
+  const propProblem = await call('POST', '/api/problems', {
+    token: setter,
+    body: {
+      slug: propSlug, title: 'E2E Proposed', statement: 'x', difficulty: 900,
+      timeLimitMs: 2000, memLimitKb: 262144, judgeMode: 'EXACT', draft: true
+    }
+  });
+  check('draft problem for proposing → 201', propProblem.status === 201, propProblem);
+  check('the eligible pool really is queried, and the new draft is in it',
+    (await call('GET', '/api/contests/eligible-problems', { token: setter }))
+      .body?.some((p) => p.slug === propSlug), propSlug);
+
+  // A future contest, so accepting a proposal is legal (the live ones above have started). It has
+  // no problems yet, which the API only permits when it is created open for proposals.
+  const noProblemsClosed = await call('POST', '/api/contests', {
+    token: admin,
+    body: {
+      title: `E2E Empty ${RUN}`,
+      startsAt: new Date(Date.now() + 86_400_000).toISOString(),
+      endsAt: new Date(Date.now() + 90_000_000).toISOString(),
+      freezeMin: 0, scoring: 'ICPC', problems: []
+    }
+  });
+  check('a contest with neither problems nor open calls → 400',
+    noProblemsClosed.status === 400, noProblemsClosed);
+
+  const callContest = await call('POST', '/api/contests', {
+    token: admin,
+    body: {
+      title: `E2E Calls ${RUN}`,
+      startsAt: new Date(Date.now() + 86_400_000).toISOString(),
+      endsAt: new Date(Date.now() + 90_000_000).toISOString(),
+      freezeMin: 0, scoring: 'ICPC', problems: [], callsOpen: true
+    }
+  });
+  check('a problem-less contest created for proposals → 201', callContest.status === 201, callContest);
+  const cid = callContest.body?.id;
+
+  const closed = await call('POST', `/api/contests/${cid}/calls`, { token: admin, body: { open: false } });
+  check('ADMIN closes calls → 200', closed.status === 200, closed);
+
+  const proposeClosed = await call('POST', `/api/contests/${cid}/proposals`, {
+    token: setter, body: { problemId: propProblem.body?.id, note: 'too early' }
+  });
+  check('proposing while calls are closed → 409', proposeClosed.status === 409, proposeClosed);
+
+  const proposeAsUser = await call('POST', `/api/contests/${cid}/proposals`, {
+    token: alice, body: { problemId: propProblem.body?.id, note: 'nope' }
+  });
+  check('a contestant cannot propose → 403', proposeAsUser.status === 403, proposeAsUser);
+
+  const opened = await call('POST', `/api/contests/${cid}/calls`, { token: admin, body: { open: true } });
+  check('ADMIN reopens calls → 200', opened.status === 200, opened);
+
+  const proposed = await call('POST', `/api/contests/${cid}/proposals`, {
+    token: setter, body: { problemId: propProblem.body?.id, note: 'nice warmup' }
+  });
+  check('setter proposes a problem → 201', proposed.status === 201, proposed);
+  check('the proposal echoes the problem it names', proposed.body?.slug === propSlug, proposed.body);
+
+  const dup = await call('POST', `/api/contests/${cid}/proposals`, {
+    token: setter, body: { problemId: propProblem.body?.id, note: 'again' }
+  });
+  check('proposing the same problem twice → 409', dup.status === 409, dup);
+
+  const mine = await call('GET', '/api/contests/my-proposals', { token: setter });
+  check('the setter sees their own proposal in my-proposals',
+    mine.status === 200 && mine.body?.some((x) => x.id === proposed.body?.id), mine.body);
+
+  const listed = await call('GET', `/api/contests/${cid}/proposals`, { token: admin });
+  check('ADMIN lists the contest proposals',
+    listed.status === 200 && listed.body?.some((x) => x.id === proposed.body?.id), listed.body);
+
+  const acceptedProposal = await call('POST', `/api/contests/${cid}/proposals/${proposed.body?.id}/accept`, {
+    token: admin, body: { label: 'A' }
+  });
+  check('ADMIN accepts the proposal → 200', acceptedProposal.status === 200, acceptedProposal);
+  check('the accepted problem is now on the contest',
+    (await call('GET', `/api/contests/${cid}`, { token: admin }))
+      .body?.problems?.some((p) => p.label === 'A'), null);
 
   section('Search, filter and tags (FR-14, FR-15)');
   // The list query is the most complex native SQL in the backend — CSV tag splitting, AND-tag
