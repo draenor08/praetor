@@ -13,7 +13,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let e of entries" [class.row-me]="e.handle === me">
+      <tr *ngFor="let e of entries; trackBy: trackEntry" [class.row-me]="e.handle === me">
         <td class="col-rank num">{{ e.rank }}</td>
         <td>
           {{ e.handle }}

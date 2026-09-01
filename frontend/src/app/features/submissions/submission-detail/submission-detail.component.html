@@ -35,7 +35,7 @@
       </tr>
     </thead>
     <tbody>
-      <ng-container *ngFor="let r of s.results">
+      <ng-container *ngFor="let r of s.results; trackBy: trackResult">
         <tr>
           <td class="col-ord num">{{ r.ord }}</td>
           <td><span class="verdict verdict-{{ r.verdict }}">{{ r.verdict }}</span></td>

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
@@ -8,6 +8,7 @@ import { StandingsLiveComponent } from '../standings-live/standings-live.compone
 import { CountdownComponent } from '../../../shared/components/countdown/countdown.component';
 import { phaseOf, serverNowMs, serverSkewMs } from '../../../shared/contest-clock';
 import { ToastService } from '../../../shared/toast/toast.service';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 /**
  * Contest page: meta, the problem set, registration, and the live ICPC standings board.
@@ -22,9 +23,11 @@ import { ToastService } from '../../../shared/toast/toast.service';
   standalone: true,
   imports: [CommonModule, RouterModule, StandingsLiveComponent, CountdownComponent],
   templateUrl: './contest-detail.component.html',
-  styleUrls: ['./contest-detail.component.scss']
+  styleUrls: ['./contest-detail.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ContestDetailComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
   private tokenService = inject(TokenService);
   private route = inject(ActivatedRoute);
@@ -101,7 +104,7 @@ export class ContestDetailComponent implements OnInit {
       return;
     }
     this.registering = true;
-    this.api.registerForContest(this.contestId).subscribe({
+    this.api.registerForContest(this.contestId).pipe(markDirty(this.cdr)).subscribe({
       next: () => {
         this.registering = false;
         this.toast.success('Registration successful.');
@@ -122,7 +125,7 @@ export class ContestDetailComponent implements OnInit {
   }
 
   private load(): void {
-    this.api.getContest(this.contestId).subscribe({
+    this.api.getContest(this.contestId).pipe(markDirty(this.cdr)).subscribe({
       next: (c) => {
         this.contest = c;
         this.loading = false;
@@ -133,4 +136,9 @@ export class ContestDetailComponent implements OnInit {
       }
     });
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackContestProblem(_index: number, p: any): any {
+    return p.label;
+  }
+
 }

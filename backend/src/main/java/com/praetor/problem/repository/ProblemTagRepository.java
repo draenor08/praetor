@@ -16,6 +16,11 @@ import org.springframework.stereotype.Repository;
  *
  * <p>Bound to {@link ProblemView} only to satisfy Spring Data's type parameter — no query here reads
  * or writes a problem row.
+ *
+ * <p>The write side takes tag names as ONE comma-separated string rather than a collection: binding
+ * an empty collection to an {@code IN} list renders {@code IN ()}, which is a Postgres syntax error.
+ * The list filter does the same thing for the same reason. Tag names cannot contain a comma —
+ * {@code ProblemService.normalizeTags} refuses them — which is what makes the round trip safe.
  */
 @Repository
 public interface ProblemTagRepository extends JpaRepository<ProblemView, Long> {
@@ -33,27 +38,31 @@ public interface ProblemTagRepository extends JpaRepository<ProblemView, Long> {
     List<String> findTagNamesByProblemId(@Param("problemId") Long problemId);
 
     /**
-     * Creates the tag if this is the first problem to use it. {@code ON CONFLICT DO NOTHING} makes
-     * the statement idempotent, so concurrent setters adding the same new tag cannot collide on the
-     * unique index.
+     * Creates whichever of these tags do not exist yet, in one statement. {@code ON CONFLICT DO
+     * NOTHING} keeps it idempotent, so two setters introducing the same new tag cannot collide on
+     * the unique index.
      */
     @Modifying
-    @Query(value = "INSERT INTO tags (name) VALUES (:name) ON CONFLICT (name) DO NOTHING",
-            nativeQuery = true)
-    void insertTagIfAbsent(@Param("name") String name);
-
-    @Query(value = "SELECT id FROM tags WHERE name = :name", nativeQuery = true)
-    Long findTagIdByName(@Param("name") String name);
+    @Query(value = """
+            INSERT INTO tags (name)
+            SELECT DISTINCT unnest(string_to_array(:nameCsv, ','))
+            ON CONFLICT (name) DO NOTHING
+            """, nativeQuery = true)
+    void insertTagsIfAbsent(@Param("nameCsv") String nameCsv);
 
     /** Tag edits are replace-not-merge, so a removed tag actually disappears. */
     @Modifying
     @Query(value = "DELETE FROM problem_tags WHERE problem_id = :problemId", nativeQuery = true)
     void deleteTagsOfProblem(@Param("problemId") Long problemId);
 
+    /** Attaches every named tag to the problem in one statement. */
     @Modifying
     @Query(value = """
-            INSERT INTO problem_tags (problem_id, tag_id) VALUES (:problemId, :tagId)
+            INSERT INTO problem_tags (problem_id, tag_id)
+            SELECT :problemId, t.id
+            FROM tags t
+            WHERE t.name = ANY(string_to_array(:nameCsv, ','))
             ON CONFLICT DO NOTHING
             """, nativeQuery = true)
-    void insertProblemTag(@Param("problemId") Long problemId, @Param("tagId") Long tagId);
+    void attachTags(@Param("problemId") Long problemId, @Param("nameCsv") String nameCsv);
 }

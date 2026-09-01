@@ -1,10 +1,11 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { ContestDetail } from '../../../core/models/contest.model';
 import { StandingsLiveComponent } from '../standings-live/standings-live.component';
 import { CountdownComponent } from '../../../shared/components/countdown/countdown.component';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 /**
  * One contest's standings on its own page, reached from the Standings section. The contest is
@@ -16,9 +17,11 @@ import { CountdownComponent } from '../../../shared/components/countdown/countdo
   standalone: true,
   imports: [CommonModule, RouterModule, StandingsLiveComponent, CountdownComponent],
   templateUrl: './contest-standings.component.html',
-  styleUrls: ['./contest-standings.component.scss']
+  styleUrls: ['./contest-standings.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ContestStandingsComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
 
@@ -30,7 +33,7 @@ export class ContestStandingsComponent implements OnInit {
   ngOnInit(): void {
     this.contestId = Number(this.route.snapshot.paramMap.get('id'));
 
-    this.api.getContest(this.contestId).subscribe({
+    this.api.getContest(this.contestId).pipe(markDirty(this.cdr)).subscribe({
       next: (c) => {
         this.contest = c;
         this.loading = false;

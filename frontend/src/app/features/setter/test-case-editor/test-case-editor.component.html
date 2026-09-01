@@ -47,7 +47,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let row of rows; let i = index">
+      <tr *ngFor="let row of rows; let i = index; trackBy: trackCaseRow">
         <td class="col-ord">
           <input type="number" min="1" [(ngModel)]="row.ord" [name]="'ord' + i"
                  [disabled]="frozen">

@@ -1,4 +1,4 @@
-import { Component, ElementRef, NgZone, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, NgZone, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
@@ -7,15 +7,18 @@ import { ApiService } from '../../../core/services/api.service';
 import { WsService } from '../../../core/services/ws.service';
 import { ProblemDetail } from '../../../core/models/problem.model';
 import { RichTextComponent } from '../../../shared/components/rich-text/rich-text.component';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 @Component({
   selector: 'app-problem-detail',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, RichTextComponent],
   templateUrl: './problem-detail.component.html',
-  styleUrls: ['./problem-detail.component.scss']
+  styleUrls: ['./problem-detail.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProblemDetailComponent implements OnInit, OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
   private ws = inject(WsService);
   private route = inject(ActivatedRoute);
@@ -58,7 +61,7 @@ export class ProblemDetailComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     const slug = this.route.snapshot.paramMap.get('slug')!;
-    this.api.getProblem(slug).subscribe({
+    this.api.getProblem(slug).pipe(markDirty(this.cdr)).subscribe({
       next: (p) => (this.problem = p),
       error: () => (this.loadError = 'Could not load this problem.')
     });
@@ -165,12 +168,12 @@ export class ProblemDetailComponent implements OnInit, OnDestroy {
     this.liveSub?.unsubscribe();
 
     this.api.submit({ problemSlug: this.problem.slug, language: this.language, sourceCode: this.sourceCode })
-      .subscribe({
+      .pipe(markDirty(this.cdr)).subscribe({
         next: (created) => {
           this.submissionId = created.id;
           this.liveStatus = created.status;
           // Subscribe AFTER we have the id; the shared client resubscribes on (re)connect.
-          this.liveSub = this.ws.submission$(created.id).subscribe((ev) => {
+          this.liveSub = this.ws.submission$(created.id).pipe(markDirty(this.cdr)).subscribe((ev) => {
             this.liveStatus = ev.status;
             this.liveVerdict = ev.verdict;
             if (ev.status === 'DONE') {
@@ -209,6 +212,8 @@ export class ProblemDetailComponent implements OnInit, OnDestroy {
         if (this.cooldownSeconds <= 0) {
           this.clearCooldown();
         }
+        // Timer state, not an input or an event: OnPush needs telling the countdown moved.
+        this.cdr.markForCheck();
       });
     }, 1000);
   }
@@ -220,4 +225,9 @@ export class ProblemDetailComponent implements OnInit, OnDestroy {
     }
     this.cooldownSeconds = 0;
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackSample(_index: number, s: any): any {
+    return s.ord;
+  }
+
 }

@@ -20,7 +20,7 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let p of problems" [class.row-archived]="p.archived">
+    <tr *ngFor="let p of problems; trackBy: trackManaged" [class.row-archived]="p.archived">
       <td>
         <a [routerLink]="['/setter/problems', p.slug, 'edit']">{{ p.title }}</a>
         <span class="slug">{{ p.slug }}</span>

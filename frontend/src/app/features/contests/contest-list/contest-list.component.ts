@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
@@ -6,15 +6,18 @@ import { TokenService } from '../../../core/services/token.service';
 import { ContestSummary } from '../../../core/models/contest.model';
 import { CountdownComponent } from '../../../shared/components/countdown/countdown.component';
 import { ContestPhase, phaseOf, serverNowMs, serverSkewMs } from '../../../shared/contest-clock';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 @Component({
   selector: 'app-contest-list',
   standalone: true,
   imports: [CommonModule, RouterModule, CountdownComponent],
   templateUrl: './contest-list.component.html',
-  styleUrls: ['./contest-list.component.scss']
+  styleUrls: ['./contest-list.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ContestListComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
   private tokenService = inject(TokenService);
 
@@ -33,7 +36,7 @@ export class ContestListComponent implements OnInit {
   error = '';
 
   ngOnInit(): void {
-    this.api.getContests().subscribe({
+    this.api.getContests().pipe(markDirty(this.cdr)).subscribe({
       next: (list) => {
         this.contests = list;
         this.loading = false;
@@ -55,6 +58,11 @@ export class ContestListComponent implements OnInit {
 
   /** A contest crossed a boundary while the page was open — re-fetch so the pills stay honest. */
   onPhaseChange(): void {
-    this.api.getContests().subscribe({ next: (list) => (this.contests = list) });
+    this.api.getContests().pipe(markDirty(this.cdr)).subscribe({ next: (list) => (this.contests = list) });
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackContest(_index: number, c: any): any {
+    return c.id;
+  }
+
 }

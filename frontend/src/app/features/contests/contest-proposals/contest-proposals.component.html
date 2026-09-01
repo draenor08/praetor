@@ -31,7 +31,7 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let p of pending; let i = index">
+    <tr *ngFor="let p of pending; let i = index; trackBy: trackPending">
       <td>
         {{ p.title }}
         <span class="slug">{{ p.slug }}</span>
@@ -64,7 +64,7 @@
 
 <table *ngIf="decided.length > 0" class="proposal-table">
   <tbody>
-    <tr *ngFor="let p of decided">
+    <tr *ngFor="let p of decided; trackBy: trackProposal">
       <td>
         {{ p.title }}
         <span class="slug">{{ p.slug }}</span>

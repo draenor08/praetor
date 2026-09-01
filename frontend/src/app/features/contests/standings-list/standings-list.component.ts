@@ -1,8 +1,9 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { ContestSummary } from '../../../core/models/contest.model';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 /**
  * Standings entry point: the contests, each linking to its own board. Standings are per-contest, so
@@ -13,9 +14,11 @@ import { ContestSummary } from '../../../core/models/contest.model';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './standings-list.component.html',
-  styleUrls: ['./standings-list.component.scss']
+  styleUrls: ['./standings-list.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StandingsListComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
 
   contests: ContestSummary[] = [];
@@ -23,7 +26,7 @@ export class StandingsListComponent implements OnInit {
   error = '';
 
   ngOnInit(): void {
-    this.api.getContests().subscribe({
+    this.api.getContests().pipe(markDirty(this.cdr)).subscribe({
       next: (list) => {
         this.contests = list;
         this.loading = false;
@@ -46,4 +49,9 @@ export class StandingsListComponent implements OnInit {
     }
     return 'Running';
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackContest(_index: number, c: any): any {
+    return c.id;
+  }
+
 }

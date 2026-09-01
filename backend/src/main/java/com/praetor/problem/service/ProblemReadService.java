@@ -3,6 +3,7 @@ package com.praetor.problem.service;
 import com.praetor.contest.service.ContestAccessService;
 import com.praetor.identity.entity.User;
 import com.praetor.problem.dto.ProblemDetail;
+import com.praetor.problem.dto.ProblemPage;
 import com.praetor.problem.dto.ProblemSummary;
 import com.praetor.problem.dto.SampleDto;
 import com.praetor.problem.entity.ProblemView;
@@ -30,6 +31,9 @@ public class ProblemReadService {
     /** Enough to describe a problem; more is a sign the tag list is being used as a notes field. */
     private static final int MAX_TAG_FILTERS = 8;
 
+    /** Same ceiling the submission history uses, for the same reason: one request, bounded work. */
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final ProblemViewRepository problemRepo;
     private final ProblemTagRepository tagRepo;
     private final JudgeTestCaseRepository testCaseRepo;
@@ -53,26 +57,38 @@ public class ProblemReadService {
      * @param user the caller, or {@code null} for an anonymous reader
      */
     @Transactional(readOnly = true)
-    public List<ProblemSummary> list(User user, String q, Integer minDifficulty,
-                                     Integer maxDifficulty, List<String> tags) {
+    public ProblemPage list(User user, String q, Integer minDifficulty,
+                            Integer maxDifficulty, List<String> tags, int page, int size) {
 
         List<String> wanted = normalizeTagFilter(tags);
         if (minDifficulty != null && maxDifficulty != null && minDifficulty > maxDifficulty) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "minDifficulty must not exceed maxDifficulty");
         }
+        if (page < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be >= 0");
+        }
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "size must be between 1 and " + MAX_PAGE_SIZE);
+        }
 
-        return problemRepo.search(
-                        contestAccess.isStaff(user),
-                        q == null ? "" : q.trim(),
-                        minDifficulty,
-                        maxDifficulty,
-                        String.join(",", wanted),
-                        wanted.size())
+        boolean staff = contestAccess.isStaff(user);
+        String text = q == null ? "" : q.trim();
+        String tagCsv = String.join(",", wanted);
+
+        List<ProblemSummary> content = problemRepo.search(
+                        staff, text, minDifficulty, maxDifficulty, tagCsv, wanted.size(),
+                        size, page * size)
                 .stream()
                 .map(r -> new ProblemSummary(r.getSlug(), r.getTitle(), r.getDifficulty(),
                         r.getJudgeMode(), splitTags(r.getTags())))
                 .toList();
+
+        long total = problemRepo.countMatching(
+                staff, text, minDifficulty, maxDifficulty, tagCsv, wanted.size());
+
+        return new ProblemPage(content, page, size, total);
     }
 
     /** Every tag in use, for the filter control. */

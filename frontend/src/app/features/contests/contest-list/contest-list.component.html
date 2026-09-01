@@ -17,7 +17,7 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let c of contests">
+    <tr *ngFor="let c of contests; trackBy: trackContest">
       <td>
         <a [routerLink]="['/contests', c.id]">{{ c.title }}</a>
         <span *ngIf="c.callsOpen && isStaff" class="badge-calls">accepting problems</span>

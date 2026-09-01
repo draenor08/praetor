@@ -113,10 +113,25 @@ class ProblemServiceTest {
         // removed. (The problem id is IDENTITY-generated, so it is only real against a database —
         // the id reaching problem_tags is covered by the live end-to-end run, not here.)
         verify(tagRepository).deleteTagsOfProblem(any());
-        verify(tagRepository).insertTagIfAbsent("math");
-        verify(tagRepository).insertTagIfAbsent("greedy");
-        verify(tagRepository, never()).insertTagIfAbsent("Math");
-        verify(tagRepository, never()).insertTagIfAbsent("");
+        // One statement for the whole set, not one per tag. Normalisation still applies: lowercased,
+        // and the blank dropped, which is what the CSV is asserted on.
+        verify(tagRepository).insertTagsIfAbsent("math,greedy");
+        verify(tagRepository).attachTags(any(), org.mockito.ArgumentMatchers.eq("math,greedy"));
+    }
+
+    /** An explicit empty list clears the tags, and must not then write an empty CSV to SQL. */
+    @Test
+    void clearingTagsDeletesWithoutWritingAnEmptyFilter() {
+
+        User setter = user(5L, "PROBLEM_SETTER");
+        when(problemRepository.existsBySlug("cleared")).thenReturn(false);
+        when(problemRepository.save(any(Problem.class))).thenAnswer(i -> i.getArgument(0));
+
+        service.create(taggedRequest("cleared", List.of()), setter);
+
+        verify(tagRepository).deleteTagsOfProblem(any());
+        verify(tagRepository, never()).insertTagsIfAbsent(org.mockito.ArgumentMatchers.anyString());
+        verify(tagRepository, never()).attachTags(any(), org.mockito.ArgumentMatchers.anyString());
     }
 
     /** Null tags means "this request is not about tags" — a client that omits them must not wipe them. */

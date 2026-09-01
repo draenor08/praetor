@@ -31,7 +31,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let s of rows">
+      <tr *ngFor="let s of rows; trackBy: trackRow">
         <td class="col-id num">
           <a [routerLink]="['/submissions', s.id]">{{ s.id }}</a>
         </td>

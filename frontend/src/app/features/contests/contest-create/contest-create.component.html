@@ -63,7 +63,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let p of pool" [class.row-picked]="isPicked(p)">
+      <tr *ngFor="let p of pool; trackBy: trackPoolProblem" [class.row-picked]="isPicked(p)">
         <td class="col-pick">
           <input type="checkbox" [checked]="isPicked(p)" (change)="toggle(p)"
                  [attr.aria-label]="'Include ' + p.title" />

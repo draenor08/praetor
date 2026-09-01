@@ -1,9 +1,10 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { EligibleProblem } from '../../../core/models/contest.model';
+import { markDirty } from '../../../core/rx/mark-dirty';
 
 /**
  * Contest authoring, for an admin. Meta plus a problem set drawn from the eligible pool, and the
@@ -18,9 +19,11 @@ import { EligibleProblem } from '../../../core/models/contest.model';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './contest-create.component.html',
-  styleUrls: ['./contest-create.component.scss']
+  styleUrls: ['./contest-create.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ContestCreateComponent implements OnInit {
+  private cdr = inject(ChangeDetectorRef);
   private api = inject(ApiService);
   private router = inject(Router);
 
@@ -41,7 +44,7 @@ export class ContestCreateComponent implements OnInit {
   fieldErrors: Record<string, string> = {};
 
   ngOnInit(): void {
-    this.api.getEligibleProblems().subscribe({
+    this.api.getEligibleProblems().pipe(markDirty(this.cdr)).subscribe({
       next: (pool) => {
         this.pool = pool;
         this.loading = false;
@@ -121,7 +124,7 @@ export class ContestCreateComponent implements OnInit {
         })),
         callsOpen: this.callsOpen
       })
-      .subscribe({
+      .pipe(markDirty(this.cdr)).subscribe({
         next: (contest) => {
           this.saving = false;
           this.router.navigate(['/contests', contest.id]);
@@ -138,4 +141,9 @@ export class ContestCreateComponent implements OnInit {
     const ids = [...this.picked.keys()];
     ids.forEach((id, i) => this.picked.set(id, String.fromCharCode(65 + i)));
   }
+  /** Keyed so a refresh reorders rows instead of rebuilding every one. */
+  trackPoolProblem(_index: number, p: any): any {
+    return p.problemId;
+  }
+
 }
