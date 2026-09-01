@@ -157,8 +157,15 @@ CREATE TABLE submissions (
 CREATE INDEX idx_sub_user     ON submissions(user_id, created_at DESC);
 CREATE INDEX idx_sub_problem  ON submissions(problem_id);
 CREATE INDEX idx_sub_contest  ON submissions(contest_id, created_at);
--- rate-limit support (feat 24): query recent submissions per user fast
-CREATE INDEX idx_sub_user_recent ON submissions(user_id, created_at);
+-- There is deliberately no second (user_id, created_at) index: Postgres walks an index in either
+-- direction, so an ASC copy of idx_sub_user would be the same index twice — two writes per insert
+-- for no reader. The submission cooldown (FR-26) does not query this table at all; it is one
+-- in-memory timestamp per user in SubmissionRateLimiter.
+
+-- JudgeReaper sweeps submissions stranded mid-flight. Partial, so it indexes only the handful of
+-- rows actually in flight rather than the whole table, and stays near-empty in steady state.
+CREATE INDEX idx_sub_stuck ON submissions(status, created_at)
+    WHERE status IN ('QUEUED', 'JUDGING');
 
 CREATE TABLE submission_results (
     id            BIGSERIAL PRIMARY KEY,
