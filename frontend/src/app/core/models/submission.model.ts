@@ -1,7 +1,13 @@
-/** POST /api/submissions request body. contestId omitted = practice submission. */
+/**
+ * POST /api/submissions request body.
+ *
+ * There is no contestId: the server decides whether a submission scores in a contest, from the
+ * caller's registrations and the contest window. This interface used to carry an optional one, and
+ * because nothing in the app ever set it, every submission made in a live round was recorded as
+ * practice.
+ */
 export interface SubmitRequest {
   problemSlug: string;
-  contestId?: number;
   language: string;
   sourceCode: string;
 }

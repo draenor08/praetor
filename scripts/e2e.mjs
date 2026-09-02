@@ -535,7 +535,7 @@ async function main() {
   const inContest = await call('POST', '/api/submissions', {
     token: alice,
     body: {
-      problemSlug: freezeSlug, contestId: liveContest.body?.id, language: 'CPP',
+      problemSlug: freezeSlug, language: 'CPP',
       sourceCode: '#include <iostream>\nint main(){long long a,b;std::cin>>a>>b;std::cout<<a+b<<"\\n";}'
     }
   });
@@ -557,6 +557,17 @@ async function main() {
   const ownRows = await call('GET', `/api/submissions?contest=${liveContest.body?.id}`, { token: alice });
   check('the same submission IS visible in the owner\'s own history',
     ownRows.status === 200 && (ownRows.body?.content?.length ?? 0) >= 1, ownRows.body);
+
+  // ⚠ THE CHECK ABOVE IS ALSO THE CONTEST-ATTRIBUTION REGRESSION, so read a failure that way.
+  // Nothing in this file sends a contestId any more — the server derives it from the caller's
+  // registration and the contest window. This query filters on `s.contest_id = :contestId`, so a
+  // submission recorded as practice cannot appear in it. That is exactly the bug this replaced:
+  // the browser never sent the field, the service copied it straight from the request, and every
+  // submission made in a live round through the UI scored nothing while every e2e check stayed
+  // green because this script used to send it explicitly.
+  check('it was attributed to the contest WITHOUT the client naming one (derived server-side)',
+    (ownRows.body?.content ?? []).some((r) => r.id === inContest.body?.id),
+    { submissionId: inContest.body?.id, rows: ownRows.body?.content?.map((r) => r.id) });
 
   section('Standings board over HTTP (FR-18, FR-19, FR-21)');
   // StandingsCalculator has a thorough unit suite, but nothing exercised
@@ -617,7 +628,7 @@ async function main() {
   check('bob registers for the frozen contest → 201', frJoined.status === 201, frJoined);
 
   const frSub = await submitting(bob, {
-    problemSlug: frSlug, contestId: frozenContest.body?.id, language: 'CPP',
+    problemSlug: frSlug, language: 'CPP',
     sourceCode: '#include <iostream>\nint main(){long long a,b;std::cin>>a>>b;std::cout<<a+b<<"\\n";}'
   });
   check('in-freeze submission accepted → 202', frSub.status === 202, frSub);
