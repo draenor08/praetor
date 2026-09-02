@@ -49,6 +49,26 @@ public class ContestAccessService {
     }
 
     /**
+     * Which contest a new submission to this problem scores in, or {@code null} for practice.
+     *
+     * <p>Derived here rather than taken from the request body. A submission counts because three
+     * facts hold — the contest is running, it uses this problem, and the caller is registered for it
+     * — and all three live in this module's tables, so the client has nothing to contribute and
+     * nothing to get wrong. It cannot omit the field (which silently turned every browser
+     * submission into practice) and it cannot claim a contest it is not in.
+     *
+     * <p>Staff are never participants, so their submissions are always practice: an admin testing a
+     * problem mid-round must not appear on its scoreboard.
+     */
+    @Transactional(readOnly = true)
+    public Long scoringContestFor(Long problemId, User user) {
+        if (user == null || isStaff(user)) {
+            return null;
+        }
+        return accessRepo.findRunningRegisteredContestForProblem(problemId, user.getId());
+    }
+
+    /**
      * True if any contest using this problem has not ended — upcoming or running. Distinct from
      * {@link #mayAccessProblem}: that answers "may this caller read the statement", which a
      * registered participant can during the round. This answers "is the problem still contested at

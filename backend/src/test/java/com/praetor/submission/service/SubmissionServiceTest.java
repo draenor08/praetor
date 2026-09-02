@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -214,7 +215,7 @@ class SubmissionServiceTest {
     @Test
     void create_unsupportedLanguage_doesNotSpendTheCooldown() {
         assertThatThrownBy(() -> service.create(
-                new SubmitRequest("a-plus-b", null, "COBOL", "x"), owner()))
+                new SubmitRequest("a-plus-b", "COBOL", "x"), owner()))
                 .isInstanceOf(ResponseStatusException.class);
 
         verifyNoInteractions(rateLimiter);
@@ -226,7 +227,7 @@ class SubmissionServiceTest {
         when(problemRepo.findBySlug("no-such")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.create(
-                new SubmitRequest("no-such", null, "CPP", "x"), owner()))
+                new SubmitRequest("no-such", "CPP", "x"), owner()))
                 .isInstanceOf(ResponseStatusException.class);
 
         // the whole point of moving this out of the filter: a 404 must cost the user nothing
@@ -244,7 +245,7 @@ class SubmissionServiceTest {
                 .when(rateLimiter).recordOrReject(OWNER_ID);
 
         assertThatThrownBy(() -> service.create(
-                new SubmitRequest("a-plus-b", null, "CPP", "int main(){}"), owner()))
+                new SubmitRequest("a-plus-b", "CPP", "int main(){}"), owner()))
                 .isInstanceOf(SubmissionRateLimitedException.class);
 
         verify(subRepo, never()).save(any());
@@ -259,7 +260,7 @@ class SubmissionServiceTest {
         when(contestAccess.mayAccessProblem(eq(7L), any())).thenReturn(false);
 
         assertThatThrownBy(() -> service.create(
-                new SubmitRequest("a-plus-b", null, "CPP", "int main(){}"), owner()))
+                new SubmitRequest("a-plus-b", "CPP", "int main(){}"), owner()))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403");
 
@@ -267,6 +268,59 @@ class SubmissionServiceTest {
         verifyNoInteractions(rateLimiter);
         verify(subRepo, never()).save(any());
         verify(judgeService, never()).enqueue(anyLong());
+    }
+
+    // ---- contest attribution ----
+    //
+    // These exist because the frontend never sent a contestId and the service used to copy it
+    // straight out of the request, so every submission made in the browser scored nothing. The
+    // decision is now derived, and these pin the three answers it has to get right.
+
+    private JudgeProblem stubProblem(long id, String slug) {
+        JudgeProblem problem = mock(JudgeProblem.class);
+        when(problem.getId()).thenReturn(id);
+        when(problemRepo.findBySlug(slug)).thenReturn(Optional.of(problem));
+        // The id is JPA-generated and the entity exposes no setter, so the saved row comes back
+        // with a null id. create() only reads it to build its 202 body, which these tests ignore.
+        when(subRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        return problem;
+    }
+
+    @Test
+    void create_participantInARunningContest_isScoredAgainstThatContest() {
+        stubProblem(7L, "a-plus-b");
+        when(contestAccess.scoringContestFor(eq(7L), any())).thenReturn(99L);
+
+        service.create(new SubmitRequest("a-plus-b", "CPP", "int main(){}"), owner());
+
+        ArgumentCaptor<Submission> saved = ArgumentCaptor.forClass(Submission.class);
+        verify(subRepo).save(saved.capture());
+        assertThat(saved.getValue().getContestId()).isEqualTo(99L);
+    }
+
+    @Test
+    void create_outsideAnyRunningContest_isPractice() {
+        stubProblem(7L, "a-plus-b");
+        when(contestAccess.scoringContestFor(eq(7L), any())).thenReturn(null);
+
+        service.create(new SubmitRequest("a-plus-b", "CPP", "int main(){}"), owner());
+
+        ArgumentCaptor<Submission> saved = ArgumentCaptor.forClass(Submission.class);
+        verify(subRepo).save(saved.capture());
+        assertThat(saved.getValue().getContestId()).isNull();
+    }
+
+    @Test
+    void create_neverAsksTheCallerWhichContestItIs() {
+        stubProblem(7L, "a-plus-b");
+        when(contestAccess.scoringContestFor(eq(7L), any())).thenReturn(99L);
+
+        service.create(new SubmitRequest("a-plus-b", "CPP", "int main(){}"), owner());
+
+        // The request record carries no contestId at all, so the only way the id can reach the row
+        // is the service asking the contest module. If someone reintroduces a client-supplied
+        // field, this is the test that should stop them.
+        verify(contestAccess).scoringContestFor(eq(7L), any());
     }
 
     // ---- rejudge (FR-27) ----

@@ -50,6 +50,30 @@ public interface ContestAccessRepository extends JpaRepository<Contest, Long> {
                                                      @Param("userId") Long userId);
 
     /**
+     * The contest a new submission to this problem scores in, or {@code null} for practice: the
+     * contest that is RUNNING right now, uses this problem, and that the user is registered for.
+     * Deliberately the same three conditions as
+     * {@link #existsRunningRegisteredContestForProblem} — that one answers "may this caller submit
+     * at all", this one answers "and does it count" — so the two can never disagree about what a
+     * live participation is.
+     *
+     * <p>A problem can belong to at most one contest ({@link #isEligibleForContest} only lets a
+     * draft nobody has read be claimed, and publication is one-way), so the answer cannot be
+     * ambiguous; {@code LIMIT 1} states that rather than relying on it.
+     */
+    @Query(value = """
+            SELECT c.id
+            FROM contest_problems cp
+            JOIN contests c ON c.id = cp.contest_id
+            JOIN registrations r ON r.contest_id = c.id AND r.user_id = :userId
+            WHERE cp.problem_id = :problemId
+              AND now() BETWEEN c.starts_at AND c.ends_at
+            LIMIT 1
+            """, nativeQuery = true)
+    Long findRunningRegisteredContestForProblem(@Param("problemId") Long problemId,
+                                                @Param("userId") Long userId);
+
+    /**
      * True if a contest may use this problem: nobody has ever been able to read it, and no other
      * contest has already claimed it. The single source of the eligibility rule — the pool query
      * below selects on exactly the same two conditions.

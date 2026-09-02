@@ -86,7 +86,11 @@ public class SubmissionService {
         Submission sub = new Submission();
         sub.setUserId(user.getId());
         sub.setProblemId(problem.getId());
-        sub.setContestId(req.contestId());
+        // Derived, never taken from the request: a submission scores in a contest because the caller
+        // is registered for one that is running and uses this problem. The client used to supply
+        // this, and the browser never did — so every UI submission to a live round was silently
+        // recorded as practice and scored nothing.
+        sub.setContestId(contestAccess.scoringContestFor(problem.getId(), user));
         sub.setLanguage(language.name());
         sub.setSourceCode(req.sourceCode());
         sub.setStatus(SubmissionStatus.QUEUED);
