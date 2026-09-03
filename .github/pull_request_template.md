@@ -14,8 +14,13 @@
       or other shared files are minimal and additive — I did not rewrite them.
 - [ ] **It builds.** `docker compose up --build` comes up green (frontend
       compiles, backend starts, no stack traces).
+- [ ] **CI is green** — all three jobs (backend unit tests, frontend build,
+      e2e journey). A red PR does not merge.
 - [ ] **Matches the contract.** Endpoints follow `docs/api-contracts.md`;
-      I did not redesign shapes.
+      I did not redesign shapes. Note there is deliberately **no `contestId`**
+      in a submission request — the server derives it.
+- [ ] **Frontend only:** every new `subscribe` pipes `markDirty(this.cdr)`, and
+      `node scripts/check-mark-dirty.mjs` passes (every component is OnPush).
 - [ ] **Scoped small.** One feature / one concern. Big mixed PRs get sent back.
 
 ## How I tested it

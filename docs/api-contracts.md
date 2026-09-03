@@ -369,10 +369,22 @@ Newest first (`createdAt DESC, id DESC`). `page` below 0 or `size` outside 1–1
 
 ```json
 // POST /api/submissions  request
-{ "problemSlug":"a-plus-b", "contestId": 1, "language":"CPP", "sourceCode":"..." }
+{ "problemSlug":"a-plus-b", "language":"CPP", "sourceCode":"..." }
 // 202 Accepted response (async — FR-8)
 { "id": 99, "status":"QUEUED" }
 ```
+
+> ⚠️ **There is deliberately no `contestId` in the request — do not add one.** Whether a submission
+> scores in a contest is derived server-side by `ContestAccessService.scoringContestFor(problemId,
+> user)`: the caller's own registration in a **running** contest that uses the problem, else `null`
+> for practice. Staff are never participants, so an admin testing a problem mid-round always submits
+> as practice and cannot appear on its board.
+>
+> It *was* a request field, and `SubmissionService` copied it straight out of the body. The frontend
+> never sent it ⇒ **every submission made in the browser was recorded as practice**, which put
+> standings, ELO, first-solve and the whole freeze out of reach of the UI. Fixed in `#55`. It
+> survived 130 green e2e checks because `scripts/e2e.mjs` supplied the field by hand — **when a test
+> supplies a value, ask who supplies it in production.**
 ```json
 // GET /api/submissions/{id}  response (after judging)
 { "id":99, "handle":"alice", "problemSlug":"a-plus-b", "language":"CPP",
