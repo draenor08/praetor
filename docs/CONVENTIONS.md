@@ -110,6 +110,15 @@ Praetor follows **Model-View-Controller**:
 - JWT is attached by the shared `HttpInterceptor` in `core/` — do **not** add the token manually per request.
 - **No business logic in components** — keep them thin; logic lives in services.
 - Type everything; avoid `any`.
+- **Every component is `ChangeDetectionStrategy.OnPush`, so every `subscribe` pipes `markDirty(this.cdr)`.**
+  Assigning a field inside a `subscribe` callback is *not* one of the things that marks an OnPush
+  component dirty, so a screen can silently stop updating while still compiling and still passing
+  every unit test. The one operator lives in `core/rx/mark-dirty.ts` and is written that way so a
+  missing one can be found mechanically: **`node scripts/check-mark-dirty.mjs`** names `file:line`
+  for any offender and exits non-zero. Three components legitimately call `markForCheck()` directly
+  because their state moves outside any stream (countdown's `setInterval`, rich-text's lazy KaTeX
+  import, problem-detail's cooldown timer + Monaco load); the script lists those rather than failing
+  them. **Run it before opening a frontend PR** — it is not in CI yet.
 
 ---
 
@@ -131,7 +140,9 @@ Praetor follows **Model-View-Controller**:
 # 6. Git workflow
 
 - **Branch per task:** `type/kebab-task`. Types: `feat/`, `fix/`, `chore/`, `docs/`.
-- **Never commit directly to `main`.** `main` stays green and demoable at all times.
+- **Never commit directly to `main`.** `main` stays green and demoable at all times — and since
+  `#48` that is **machine-checked**: `.github/workflows/ci.yml` runs backend unit tests, the shipped
+  frontend build, and the e2e journey on every push and PR. **A red PR does not merge.**
 - **Small PRs, reviewed by a *different* member** before merge (per Definition of Done).
 - **Commit style — Conventional Commits.** Subject ≤ 50 chars, imperative mood. Body only when the "why" isn't obvious.
 
@@ -150,6 +161,7 @@ Praetor follows **Model-View-Controller**:
 - [ ] Branch is feat/fix/chore/docs + kebab task
 - [ ] Matches the shape in api-contracts.md (if it touches an endpoint)
 - [ ] Unit test for the service logic
+- [ ] CI green (all three jobs)
 - [ ] Manually verified in the running app
 - [ ] No console / stack-trace errors
 - [ ] Reviewed by a different member
@@ -163,7 +175,11 @@ Praetor follows **Model-View-Controller**:
 - **Sandbox runner rules (treat submitted code as hostile):**
   - **No network** in the run container.
   - Strict **CPU / memory / PID / time** limits enforced per run.
-  - **Destroy the container after each run** — no reuse, no state leaking between submissions.
+  - **Destroy the container after each submission** — no state leaks between submissions. Note the
+    unit: since `#51` the judge stands up **one container per submission** and runs each test case as
+    a `docker exec` into it, rather than one container per case; that is where its ~4× speedup comes
+    from. Cases within a single submission therefore share a container, which is a submission's own
+    code either way. Set `SANDBOX_REUSE_CONTAINER=false` to fall back to one container per case.
   - Untrusted code must never affect the host or another submission.
 - **Secrets** (DB password, JWT secret) come from **env vars**, never committed. Commit a `.env.example` with dummy values; keep the real `.env` git-ignored.
 - Pin base image versions in `Dockerfile`s — no bare `:latest` for reproducible demos.
@@ -173,17 +189,29 @@ Praetor follows **Model-View-Controller**:
 # 8. Testing & Definition of Done
 
 - **Backend:** JUnit for service logic; **Testcontainers** for repository/integration tests against a real Postgres (not H2).
-- **Judging correctness:** keep a fixed set of known-**AC** and known-**WA** solutions per seeded problem; run them every sprint as a smoke test so a refactor can't silently break verdicts.
-- **Frontend:** component tests for the submit + standings flows.
+- **Judging correctness:** keep a fixed set of known-**AC** and known-**WA** solutions per seeded
+  problem; run them every sprint as a smoke test so a refactor can't silently break verdicts.
+  **The AC half of this exists**: `demo/solutions/<problem-slug>/{main.cpp,main.py,Main.java}` — one
+  accepted solution for every seeded problem in every language the judge offers — and
+  `node demo/solutions/verify.mjs` submits all of them and asserts `AC`. The **WA/TLE/MLE/RE/CE
+  half does not exist yet**; those verdicts are still produced by typing wrong code by hand. The
+  filenames are fixed by `submission/engine/Language.java` (`Main.java` must hold `public class Main`
+  or `javac` gives an honest CE) — don't rename them.
+- **Frontend: there is no test runner in v1 — state it plainly rather than pretend.** No
+  `.spec.ts`, no karma/jest/vitest, no `npm test`. What stands in for it: the **e2e journey**
+  (`scripts/e2e.mjs`, run in CI) exercises submit and standings against the real stack, and
+  **`scripts/check-mark-dirty.mjs`** guards the one convention a compiler cannot (§4.3). Adding a
+  runner is a v2 item; until then do not write a DoD checkbox that no one can tick.
 
 A feature is **Done** only when **all** of these hold:
 
 1. Code merged to `main` via PR.
 2. Reviewed by a different member.
 3. Unit test for the service logic exists.
-4. Endpoint matches the API contract.
-5. Manually verified in the running app.
-6. No console / stack-trace errors.
+4. **CI green on all three jobs** — unit tests, frontend build, e2e journey.
+5. Endpoint matches the API contract.
+6. Manually verified in the running app.
+7. No console / stack-trace errors.
 
 ---
 
@@ -208,7 +236,8 @@ The PR template (`.github/pull_request_template.md`) is this list as a checklist
 - **MVC** Model = JPA entities + repositories + services · View = Angular SPA + JSON · Controller = thin `@RestController`. Within the Model tier layer `Service → Repository`; no logic in controllers, no queries outside repositories.
 - **API** shapes are fixed in `api-contracts.md`. Base `/api`, Bearer JWT, ISO-8601 UTC, error `{error,status}`, pages `{content,page,size,totalElements}`.
 - **Integration** engine reads DB directly · cross-module = service beans, never HTTP · validate role server-side on every write.
-- **Git** branch `type/kebab-task` · never commit to `main` · PR reviewed by someone else · commit `type: summary` ≤50 chars.
+- **Git** branch `type/kebab-task` · never commit to `main` · **CI green (3 jobs) or it doesn't merge** · PR reviewed by someone else · commit `type: summary` ≤50 chars.
 - **PR scope** only your package's files · nothing at repo root · no private docs / `.env` · shared files additive-only · one concern per PR.
-- **Docker** `docker compose up` must stay green · sandbox = no network + hard limits + destroy after run · secrets via env, `.env` git-ignored.
-- **Done** = merged + reviewed + tested + contract-matched + manually verified + no errors.
+- **Docker** `docker compose up` must stay green · sandbox = no network + hard limits + **one container per submission, destroyed after it** (`SANDBOX_REUSE_CONTAINER=false` for one per case) · secrets via env, `.env` git-ignored.
+- **Frontend** every component is OnPush ⇒ every `subscribe` pipes `markDirty(this.cdr)`; run `node scripts/check-mark-dirty.mjs` before a frontend PR. No unit-test runner in v1.
+- **Done** = merged + reviewed + tested + **CI green** + contract-matched + manually verified + no errors.

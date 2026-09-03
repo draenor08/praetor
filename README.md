@@ -267,6 +267,11 @@ praetor/
 ├── db/
 │   ├── schema.sql
 │   └── seed.sql
+├── demo/
+│   └── solutions/            # an AC solution per problem per language + verify.mjs
+│       ├── <problem-slug>/   # main.cpp · main.py · Main.java
+│       ├── README.md
+│       └── verify.mjs
 ├── docs/
 │   ├── CONVENTIONS.docx
 │   ├── CONVENTIONS.md
@@ -383,6 +388,7 @@ praetor/
 │   └── Dockerfile
 ├── scripts/
 │   ├── browser-pass-setup.sh
+│   ├── check-mark-dirty.mjs
 │   └── e2e.mjs
 ├── .env
 ├── .env.example
@@ -435,14 +441,39 @@ docker compose up --build         # postgres + backend + frontend
 Rebuild the judge image after any change under `judge/`. If the DB schema changes, reset the volume
 once with `docker compose down -v` before the next `up` (ddl-auto=none — it won't self-migrate).
 
+The sandbox runs **one container per submission**, not one per test case: `compile` stands the
+container up and every phase after it is a `docker exec` into it, which is where the judge's ~4×
+speedup comes from. The container is destroyed when the submission finishes, so nothing leaks
+between submissions. If that path is ever suspect, the old one-container-per-case behaviour is one
+env var away:
+
+```bash
+SANDBOX_REUSE_CONTAINER=false     # backend env; default true (application.yml: judge.sandbox.reuse-container)
+```
+
 `JWT_SECRET` must be at least 32 characters (HS256 needs a 256-bit key). Miss it or make it short
 and the backend stops at startup naming the property, rather than failing later on the first login.
 It does not need to match your teammates' — each stack signs and verifies its own tokens. Changing
 it invalidates every issued token, so everyone logs in again.
 
-Seed loads 4 problems, 1 live contest, 4 users. All four seed accounts log in with the password
-`password` (dev only): `draenor08` (ADMIN), `setter01` (PROBLEM_SETTER), `alice` and `bob` (USER).
-Authoring a problem needs `setter01` or `draenor08`.
+Seed loads **16 problems**, **3 contests** and **12 users**. Every seed account logs in with the
+password `password` (dev only):
+
+| accounts | role |
+|---|---|
+| `draenor08` | ADMIN — the only account that can create a contest or decide a problem proposal |
+| `setter01`, `setter02` | PROBLEM_SETTER — authoring and test cases |
+| `alice bob carol dan erin farid gita hasan imran` | USER |
+
+Of the 16 problems, **12 are published** and **4 are drafts** (`grid-walk`, `two-sums`,
+`bracket-balance`, `median-stream`) — a contest can only claim a draft, so those are the pool the
+contest form offers. `median-stream` deliberately has **zero test cases**, to show the guard.
+
+The three contests are seeded *relative to `now()`*, so a fresh volume always has one of each state:
+`Praetor Warm-up Round 0` ended 3 days ago (real scoreboard), `Praetor Demo Round 1` is running
+(2-hour window, 15-minute freeze), `Praetor Round 2` starts in 2 days. A volume seeded on an
+**earlier day** therefore has a "live" contest that has already ended — `scripts/browser-pass-setup.sh`
+re-dates the window without dropping data.
 
 ## End-to-end check
 ```bash
@@ -455,6 +486,18 @@ cooldown, the delete guard, archive, and contest rating. Exits non-zero on the f
 prints the actual response. Safe to re-run: everything it creates is suffixed per run. It leaves one
 archived problem behind on purpose — it has submissions by then, so the delete guard (correctly)
 refuses to remove it.
+
+Two more checks, neither of which needs the stack:
+
+```bash
+node scripts/check-mark-dirty.mjs   # every OnPush subscribe pipes markDirty() — see CONVENTIONS 4.3
+node demo/solutions/verify.mjs      # every demo solution still gets AC (needs the stack + judge image)
+```
+
+**CI** (`.github/workflows/ci.yml`) runs three jobs on every push and PR: backend unit tests
+(`mvn test`), the frontend build in its shipped `docker` configuration, and the e2e journey — the
+only job that executes a repository `@Query`, since every backend test mocks its repositories. The
+two scripts above are **not** in CI yet and are run by hand.
 
 ## Demo walkthrough
 1. Log in as `setter01` → **Manage** in the rail (staff only) → **New problem**.
